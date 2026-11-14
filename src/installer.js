@@ -3,10 +3,9 @@
 
 const { app, net } = require('electron');
 const fs = require('fs');
+const https = require('https');
 const path = require('path');
 const { spawn } = require('child_process');
-const { Readable } = require('stream');
-const { pipeline } = require('stream/promises');
 const AdmZip = require('adm-zip');
 
 const BUILDBOT = 'https://buildbot.libretro.com';
@@ -38,16 +37,38 @@ const cmpVer = (a, b) => {
   return 0;
 };
 
-async function download(url, dest, onProgress) {
-  const res = await net.fetch(url);
-  if (!res.ok) throw new Error(`Téléchargement impossible (${res.status}) : ${url}`);
-  const total = Number(res.headers.get('content-length')) || 0;
-  let done = 0;
-  const stream = Readable.fromWeb(res.body);
-  stream.on('data', (c) => { done += c.length; if (onProgress) onProgress(done, total); });
-  await pipeline(stream, fs.createWriteStream(dest));
-  if (total && done !== total) throw new Error(`Téléchargement incomplet (${done} octets sur ${total}).`);
-  return done;
+// Téléchargement avec le module https de Node (et non net.fetch d'Electron) :
+// chaque morceau reçu a sa propre mémoire, donc aucun risque de mélange des données.
+// (Avec net.fetch, des morceaux étaient parfois écrits en double et d'autres perdus :
+// fichier de la bonne taille, mais abîmé → « Data Error » à la décompression.)
+function download(url, dest, onProgress, redirects = 0) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'Cartouche' } }, (res) => {
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        res.resume();
+        if (redirects >= 5) return reject(new Error('Trop de redirections.'));
+        const next = new URL(res.headers.location, url).toString();
+        return resolve(download(next, dest, onProgress, redirects + 1));
+      }
+      if (res.statusCode !== 200) {
+        res.resume();
+        return reject(new Error(`Téléchargement impossible (${res.statusCode}) : ${url}`));
+      }
+      const total = Number(res.headers['content-length']) || 0;
+      let done = 0;
+      const out = fs.createWriteStream(dest);
+      res.on('data', (c) => { done += c.length; if (onProgress) onProgress(done, total); });
+      res.on('error', reject);
+      out.on('error', reject);
+      out.on('finish', () => {
+        if (total && done !== total) reject(new Error(`Téléchargement incomplet (${done} octets sur ${total}).`));
+        else resolve(done);
+      });
+      res.pipe(out);
+    });
+    req.on('error', reject);
+    req.setTimeout(60000, () => req.destroy(new Error('Le serveur ne répond plus.')));
+  });
 }
 
 async function headSize(url) {

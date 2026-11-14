@@ -249,7 +249,7 @@ $('#btn-check-update').onclick = async (e) => {
   e.preventDefault();
   toast('Recherche de mises à jour…');
   const r = await window.api.checkUpdate();
-  if (r === 'à jour') toast('Tu as déjà la dernière version 👍');
+  if (r === 'à jour') toast('Aucune nouvelle version pour l’instant (GitHub peut mettre quelques minutes à l’annoncer).');
   else if (r === 'trouvée') toast('Nouvelle version trouvée : téléchargement en cours (bandeau en haut).');
   else toast('Impossible de vérifier pour l’instant. Réessaie plus tard.');
 };
