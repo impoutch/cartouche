@@ -143,3 +143,16 @@ button:disabled { opacity: .5; cursor: default; }
 
 .badge.save { margin-left: 6px; color: #d9dcea; }
 .step code { font-size: 12px; }
+
+/* Choix de la sauvegarde */
+.picker { width: min(560px, 92vw); }
+.save-list { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
+.save-opt { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--bg); }
+.save-opt:hover { border-color: #3a3f55; }
+.save-opt:has(input:checked) { border-color: var(--accent); background: #1b1a33; }
+.save-opt input[type=radio] { margin-top: 3px; accent-color: var(--accent); }
+.save-opt > div { flex: 1; }
+.save-title { font-weight: 600; }
+.text-input { margin-top: 8px; width: 100%; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 7px 10px; outline: none; user-select: text; font: inherit; }
+.text-input:focus { border-color: var(--accent); }
+.badge.save.empty { color: var(--muted); }

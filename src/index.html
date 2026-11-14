@@ -77,12 +77,28 @@
         <h3><span class="num">3</span> Options</h3>
         <label class="toggle"><input type="checkbox" id="opt-fullscreen" /> Lancer les jeux en plein écran</label>
         <label class="toggle"><input type="checkbox" id="opt-saves" /> Sauvegardes en fichiers .sav à côté des jeux</label>
-        <p class="muted small">Ex. : <code>Pokemon Emeraude.sav</code> à côté de <code>Pokemon Emeraude.gba</code>. Tu peux y déposer un .sav venant d’un autre émulateur (même nom que le jeu). Avant d’écraser un .sav, l’ancien est gardé en <code>.sav.bak</code>.</p>
+        <p class="muted small">Ex. : <code>Pokemon Emeraude.sav</code> (principale) et <code>Pokemon Emeraude - Nuzlocke.sav</code> à côté de <code>Pokemon Emeraude.gba</code>. Tu choisis la sauvegarde avant chaque partie. Tu peux y déposer des .sav d’autres émulateurs. Avant d’écraser un .sav, l’ancien est gardé en <code>.sav.bak</code>.</p>
         <p class="muted small">Astuce : dans un jeu, la touche <b>F1</b> ouvre le menu (sauvegardes, manettes) et <b>Échap</b> quitte.</p>
       </div>
 
       <button id="btn-done" class="primary wide">C’est parti</button>
       <p class="muted small center"><span id="version"></span> · <a href="#" id="btn-check-update">Vérifier les mises à jour</a></p>
+    </div>
+  </div>
+
+  <!-- Choix de la sauvegarde avant de jouer -->
+  <div id="picker" class="overlay hidden">
+    <div class="panel picker">
+      <div class="panel-head">
+        <h2 id="picker-title">Jouer</h2>
+        <button id="btn-close-picker" class="ghost">✕</button>
+      </div>
+      <p class="muted small">Choisis la sauvegarde à utiliser. Elle sera mise à jour quand tu quitteras le jeu.</p>
+      <div id="picker-list" class="save-list"></div>
+      <div class="row">
+        <button id="btn-play" class="primary wide">▶ Jouer</button>
+      </div>
+      <p class="muted small center"><a href="#" id="btn-open-folder">Ouvrir le dossier du jeu</a></p>
     </div>
   </div>
 

@@ -11,8 +11,11 @@ let query = '';
 // « Pokemon - Yellow Version (USA, Europe) » → « Pokemon - Yellow Version »
 const cleanTitle = (raw) => raw.replace(/\s*[\(\[][^\)\]]*[\)\]]/g, '').trim() || raw;
 // Jaquettes : base communautaire libretro-thumbnails (fonctionne avec les noms de fichiers « No-Intro »)
-const coverUrl = (g) =>
-  `https://thumbnails.libretro.com/${encodeURIComponent(g.thumbs)}/Named_Boxarts/${encodeURIComponent(g.raw.replace(/[&*\/:`<>?\\|"]/g, '_'))}.png`;
+const thumbUrl = (system, name) =>
+  `https://thumbnails.libretro.com/${encodeURIComponent(system)}/Named_Boxarts/${encodeURIComponent(name.replace(/[&*\/:`<>?\\|"]/g, '_'))}.png`;
+// On essaie d'abord le nom officiel (identifié depuis la cartouche), puis le nom du fichier
+const coverUrls = (g) => [...new Set([g.official, g.raw, ...(g.alts || [])].filter(Boolean))].map((n) => thumbUrl(g.thumbs, n));
+const titleOf = (g) => cleanTitle(g.official || g.raw);
 
 function toast(msg, ms = 3500) {
   const t = $('#toast');
@@ -29,7 +32,7 @@ function visibleGames() {
   else if (filter !== 'all') list = list.filter((g) => g.system === filter);
   if (query) {
     const q = query.toLowerCase();
-    list = list.filter((g) => g.raw.toLowerCase().includes(q));
+    list = list.filter((g) => (g.raw + ' ' + (g.official || '')).toLowerCase().includes(q));
   }
   return list;
 }
@@ -46,7 +49,7 @@ function card(g) {
   const el = document.createElement('article');
   el.className = `card sys-${g.system}`;
   el.tabIndex = 0;
-  const title = cleanTitle(g.raw);
+  const title = titleOf(g);
   const fav = config.favorites.includes(g.path);
 
   const cover = document.createElement('div');
@@ -55,12 +58,13 @@ function card(g) {
   ph.className = 'placeholder';
   ph.textContent = title.slice(0, 2).toUpperCase();
   cover.appendChild(ph);
+  const urls = coverUrls(g);
   const img = new Image();
   img.loading = 'lazy';
   img.alt = '';
   img.onload = () => { cover.classList.add('has-img'); };
-  img.onerror = () => img.remove();
-  img.src = coverUrl(g);
+  img.onerror = () => { urls.shift(); if (urls.length) img.src = urls[0]; else img.remove(); };
+  img.src = urls[0];
   cover.appendChild(img);
 
   const play = document.createElement('div');
@@ -86,16 +90,17 @@ function card(g) {
   const h = document.createElement('div');
   h.className = 'title';
   h.textContent = title;
-  h.title = g.raw;
+  h.title = g.official ? `${g.official}\nFichier : ${g.raw}` : g.raw;
   const badge = document.createElement('span');
   badge.className = 'badge';
   badge.textContent = LABELS[g.system];
   meta.append(h, badge);
-  if (g.hasSave) {
+  if (g.saves) {
     const sv = document.createElement('span');
-    sv.className = 'badge save';
-    sv.textContent = '💾 .sav';
-    sv.title = 'Sauvegarde trouvée à côté du jeu';
+    sv.className = 'badge save' + (g.savesEmpty ? ' empty' : '');
+    sv.textContent = g.savesEmpty ? '💾 vide' : (g.saves > 1 ? `💾 ${g.saves}` : '💾');
+    sv.title = g.savesEmpty ? 'Fichier .sav présent, mais sans partie dedans'
+      : `${g.saves} sauvegarde${g.saves > 1 ? 's' : ''} à côté du jeu`;
     meta.append(sv);
   }
 
@@ -132,11 +137,64 @@ function render() {
 }
 
 async function launch(g) {
-  const r = await window.api.launch(g.path, g.system);
+  if (config.externalSaves === false) return startGame(g, null);
+  openPicker(g);
+}
+
+async function startGame(g, choice) {
+  const r = await window.api.launch(g.path, g.system, choice);
   if (!r.ok) { toast(r.error, 5000); return; }
-  toast(`Lancement de ${cleanTitle(g.raw)}…`);
+  toast(`Lancement de ${titleOf(g)}…`);
   config = await window.api.getConfig();
 }
+
+// ---------- Choix de la sauvegarde ----------
+let pickerGame = null;
+const fmtDate = (ms) => new Date(ms).toLocaleString('fr-CA', { dateStyle: 'medium', timeStyle: 'short' });
+
+function saveOption(value, title, sub, checked, extra) {
+  const label = document.createElement('label');
+  label.className = 'save-opt';
+  const input = document.createElement('input');
+  input.type = 'radio'; input.name = 'save'; input.value = value; input.checked = checked;
+  const txt = document.createElement('div');
+  const t = document.createElement('div'); t.className = 'save-title'; t.textContent = title;
+  const st = document.createElement('div'); st.className = 'muted small'; st.textContent = sub;
+  txt.append(t, st);
+  if (extra) txt.append(extra);
+  label.append(input, txt);
+  return label;
+}
+
+async function openPicker(g) {
+  pickerGame = g;
+  $('#picker-title').textContent = titleOf(g);
+  const { saves, last } = await window.api.listSaves(g.path);
+  const list = $('#picker-list');
+  list.replaceChildren();
+  // Présélection : la dernière utilisée, sinon la plus récente non vide, sinon « nouvelle »
+  const pre = (saves.find((x) => x.file === last) || saves.find((x) => !x.empty) || {}).file || 'new';
+  saves.forEach((x) => list.append(saveOption(x.file, x.label,
+    `Modifiée le ${fmtDate(x.mtime)}${x.empty ? ' · vide (aucune partie dedans)' : ''}`, x.file === pre)));
+  const name = document.createElement('input');
+  name.type = 'text'; name.id = 'new-save-name'; name.className = 'text-input';
+  name.placeholder = saves.length ? 'Nom (ex. Nuzlocke)' : 'Nom (facultatif)';
+  name.addEventListener('focus', () => { list.querySelector('input[value="new"]').checked = true; });
+  list.append(saveOption('new', '+ Nouvelle sauvegarde', 'Commence une partie et la garde dans un nouveau fichier .sav', pre === 'new', name));
+  list.append(saveOption('none', 'Jouer sans sauvegarde', 'La cartouche telle quelle : rien n’est enregistré', false));
+  $('#picker').classList.remove('hidden');
+  $('#btn-play').focus();
+}
+const closePicker = () => { $('#picker').classList.add('hidden'); pickerGame = null; };
+$('#btn-close-picker').onclick = closePicker;
+$('#btn-open-folder').onclick = (e) => { e.preventDefault(); if (pickerGame) window.api.showInFolder(pickerGame.path); };
+$('#btn-play').onclick = () => {
+  const v = document.querySelector('#picker-list input[name="save"]:checked')?.value || 'none';
+  const choice = v === 'none' ? { type: 'none' } : v === 'new' ? { type: 'new', label: $('#new-save-name').value } : { type: 'file', file: v };
+  const g = pickerGame;
+  closePicker();
+  startGame(g, choice);
+};
 
 async function rescan() {
   games = await window.api.scanGames();
@@ -244,12 +302,13 @@ $('#opt-fullscreen').onchange = (e) => window.api.setConfig({ fullscreen: e.targ
 $('#opt-saves').onchange = (e) => window.api.setConfig({ externalSaves: e.target.checked });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('#settings').classList.contains('hidden')) closeSettings();
+  if (e.key === 'Escape' && !$('#picker').classList.contains('hidden')) closePicker();
   if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); $('#search').focus(); }
 });
 window.api.onExited(async (saved) => {
   config = await window.api.getConfig();
-  if (saved === 'srm→sav') toast('Sauvegarde enregistrée dans le fichier .sav 💾');
-  else if (saved && saved.startsWith('erreur')) toast('Attention, sauvegarde .sav non mise à jour : ' + saved, 7000);
+  if (saved && saved.status === 'enregistree') toast('Sauvegarde enregistrée 💾 ' + saved.file.split(/[\\/]/).pop());
+  else if (saved && saved.status === 'erreur') toast('Attention, la sauvegarde n’a pas pu être écrite : ' + saved.error, 8000);
   rescan();
 });
 window.api.onError((msg) => toast('Erreur au lancement : ' + msg, 6000));
