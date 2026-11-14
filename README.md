@@ -11,5 +11,5 @@ Télécharge `Cartouche-Setup-x.y.z.exe` dans la page **Releases** et lance-le.
 L'app se met ensuite à jour toute seule.
 
 ## Publier une nouvelle version
-1. Changer `version` dans `package.json`.
-2. Créer une étiquette `vX.Y.Z` et la pousser : GitHub construit et publie l'installateur.
+Changer `version` dans `package.json` et pousser sur `main` :
+GitHub construit l'installateur et publie la version (étiquette `vX.Y.Z`) automatiquement.

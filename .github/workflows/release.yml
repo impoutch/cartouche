@@ -1,10 +1,12 @@
 # Publie automatiquement une nouvelle version de Cartouche
-# Déclenché quand on pousse une étiquette du type v0.3.0
+# Déclenché quand le numéro de version change dans package.json (branche main)
 name: Publier une version
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: ['package.json']
+  workflow_dispatch:
 
 permissions:
   contents: write
