@@ -27,6 +27,38 @@ const REGION_LANG = { france: 'fr', germany: 'de', spain: 'es', italy: 'it', jap
   uk: 'en', australia: 'en', canada: 'en', world: 'en', netherlands: 'nl', sweden: 'sv', denmark: 'da', norway: 'no',
   finland: 'fi', portugal: 'pt', brazil: 'pt', korea: 'ko', china: 'zh', taiwan: 'zh', 'hong kong': 'zh',
   russia: 'ru', poland: 'pl', quebec: 'fr', belgium: 'fr' };
+// Drapeaux dessinés en SVG (Windows n'affiche pas les émojis de drapeaux)
+const V3 = (a, b, c) => `<rect width="1" height="2" fill="${a}"/><rect x="1" width="1" height="2" fill="${b}"/><rect x="2" width="1" height="2" fill="${c}"/>`;
+const H3 = (a, b, c) => `<rect width="3" height=".67" fill="${a}"/><rect y=".66" width="3" height=".68" fill="${b}"/><rect y="1.33" width="3" height=".67" fill="${c}"/>`;
+const NORDIC = (bg, cross, inner) => `<rect width="3" height="2" fill="${bg}"/><rect x=".8" width=".5" height="2" fill="${cross}"/><rect y=".75" width="3" height=".5" fill="${cross}"/>`
+  + (inner ? `<rect x=".92" width=".26" height="2" fill="${inner}"/><rect y=".87" width="3" height=".26" fill="${inner}"/>` : '');
+const FLAGS = {
+  fr: V3('#0055a4', '#fff', '#ef4135'),
+  it: V3('#009246', '#fff', '#ce2b37'),
+  de: H3('#000', '#dd0000', '#ffce00'),
+  nl: H3('#ae1c28', '#fff', '#21468b'),
+  ru: H3('#fff', '#0039a6', '#d52b1e'),
+  es: '<rect width="3" height="2" fill="#aa151b"/><rect y=".5" width="3" height="1" fill="#f1bf00"/>',
+  pl: '<rect width="3" height="1" fill="#fff"/><rect y="1" width="3" height="1" fill="#dc143c"/>',
+  en: '<rect width="3" height="2" fill="#012169"/><path d="M0,0L3,2M3,0L0,2" stroke="#fff" stroke-width=".4"/><path d="M0,0L3,2M3,0L0,2" stroke="#c8102e" stroke-width=".15"/><path d="M1.5,0V2M0,1H3" stroke="#fff" stroke-width=".6"/><path d="M1.5,0V2M0,1H3" stroke="#c8102e" stroke-width=".35"/>',
+  ja: '<rect width="3" height="2" fill="#fff"/><circle cx="1.5" cy="1" r=".6" fill="#bc002d"/>',
+  ko: '<rect width="3" height="2" fill="#fff"/><circle cx="1.5" cy="1" r=".5" fill="#003478"/><path d="M1,1a.5.5 0 0 1 1,0z" fill="#c60c30"/>',
+  zh: '<rect width="3" height="2" fill="#de2910"/><circle cx=".6" cy=".55" r=".3" fill="#ffde00"/>',
+  pt: '<rect width="3" height="2" fill="#ff0000"/><rect width="1.2" height="2" fill="#006600"/><circle cx="1.2" cy="1" r=".35" fill="#ffcc00"/>',
+  sv: NORDIC('#006aa7', '#fecc00'),
+  da: NORDIC('#c8102e', '#fff'),
+  fi: NORDIC('#fff', '#002f6c'),
+  no: NORDIC('#ba0c2f', '#fff', '#00205b'),
+};
+function flagEl(lang, mine) {
+  const span = document.createElement('span');
+  span.className = 'flag' + (mine ? ' mine' : '');
+  span.innerHTML = FLAGS[lang]
+    ? `<svg viewBox="0 0 3 2" preserveAspectRatio="none">${FLAGS[lang]}</svg>`
+    : `<b>${lang.toUpperCase()}</b>`;
+  return span;
+}
+
 function languagesOf(name) {
   if (!name) return [];
   const groups = [...name.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]);
@@ -134,12 +166,7 @@ function card(g) {
     lr.className = 'langs';
     lr.title = 'Langues du jeu : ' + langs.map((l) => LANG_NAMES[l]).join(', ')
       + (g.official ? '' : ' (d’après le nom du fichier)');
-    for (const l of langs) {
-      const chip = document.createElement('span');
-      chip.className = 'lang' + (l === (config.language || 'fr') ? ' mine' : '');
-      chip.textContent = l.toUpperCase();
-      lr.append(chip);
-    }
+    for (const l of langs) lr.append(flagEl(l, l === (config.language || 'fr')));
     meta.append(lr);
   }
 
