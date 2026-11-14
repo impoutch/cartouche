@@ -59,9 +59,16 @@ async function findRetroArchUrl() {
 
 function extract7z(archive, outDir) {
   return new Promise((resolve, reject) => {
-    const p = spawn(sevenZip(), ['x', archive, `-o${outDir}`, '-y'], { windowsHide: true });
+    // -bso0 -bsp0 : 7-Zip n'écrit rien à l'écran. Sinon, sa longue liste de fichiers remplit
+    // le tuyau de sortie que personne ne lit, et la décompression se bloque indéfiniment.
+    const p = spawn(sevenZip(), ['x', archive, `-o${outDir}`, '-y', '-bso0', '-bsp0'], {
+      windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    let err = '';
+    p.stderr.on('data', (d) => { err += d; });
     p.on('error', reject);
-    p.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`Décompression échouée (code ${code})`))));
+    p.on('close', (code) => (code === 0 ? resolve()
+      : reject(new Error(`Décompression échouée (code ${code}) ${err.trim().slice(0, 200)}`))));
   });
 }
 
@@ -100,16 +107,21 @@ async function installAll(currentExe, progress) {
 
   if (!exe) {
     const root = installRoot();
-    fs.mkdirSync(root, { recursive: true });
     progress('Recherche de la dernière version de RetroArch…', null);
     const url = await findRetroArchUrl();
     const archive = path.join(app.getPath('temp'), 'RetroArch.7z');
     const size = await download(url, archive, (d, t) =>
       progress(`Téléchargement de RetroArch… (${Math.round(d / 1e6)} Mo${t ? ' / ' + Math.round(t / 1e6) + ' Mo' : ''})`, t ? d / t : null));
     if (size < 50e6) throw new Error('Le fichier RetroArch reçu est incomplet. Réessaie plus tard.');
-    progress('Décompression de RetroArch (1 à 2 minutes)…', null);
-    await extract7z(archive, root);
+    progress('Décompression de RetroArch (quelques minutes)…', null);
+    // On décompresse dans un dossier temporaire, puis on le renomme : une installation
+    // interrompue ne laisse jamais un RetroArch à moitié décompressé.
+    const tmpDir = root + '-tmp';
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    await extract7z(archive, tmpDir);
     fs.rmSync(archive, { force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.renameSync(tmpDir, root);
     exe = findExe(root);
     if (!exe) throw new Error('RetroArch a été téléchargé, mais retroarch.exe est introuvable.');
   }
