@@ -1,0 +1,21 @@
+# Ménage ponctuel : supprime les versions incomplètes publiées pendant la mise en place
+name: Nettoyage des versions
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/nettoyage.yml']
+permissions:
+  contents: write
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+    steps:
+      - run: |
+          for id in $(gh api "repos/$REPO/releases" --jq '.[] | select([.assets[].name] | index("latest.yml") | not) | .id'); do
+            echo "Suppression de la version incomplète $id"
+            gh api -X DELETE "repos/$REPO/releases/$id"
+          done
+          gh api "repos/$REPO/releases" --jq '.[] | [.tag_name, ([.assets[].name] | join(", "))] | @tsv'

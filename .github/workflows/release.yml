@@ -14,26 +14,33 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Créer l'étiquette de version
+      - name: Préparer la version (étiquette + brouillon)
         id: tag
         shell: bash
         run: |
           V="v$(node -p "require('./package.json').version")"
+          echo "v=$V" >> "$GITHUB_OUTPUT"
           if git ls-remote --exit-code --tags origin "refs/tags/$V" >/dev/null; then
             echo "La version $V est déjà publiée : rien à faire."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             git tag "$V" && git push origin "$V"
+            gh release create "$V" --draft --title "Cartouche $V" --notes "Télécharge **Cartouche-Setup** ci-dessous. Si tu as déjà Cartouche, la mise à jour se fait toute seule."
           fi
       - run: npm ci
         if: steps.tag.outputs.skip != 'true'
-      - run: npx electron-builder --win nsis --publish always
+      - name: Construire et envoyer l'installateur
         if: steps.tag.outputs.skip != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win nsis --publish always
+      - name: Publier la version
+        if: steps.tag.outputs.skip != 'true'
+        shell: bash
+        run: gh release edit "${{ steps.tag.outputs.v }}" --draft=false --latest

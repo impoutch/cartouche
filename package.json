@@ -46,7 +46,7 @@
         "provider": "github",
         "owner": "impoutch",
         "repo": "cartouche",
-        "releaseType": "release"
+        "releaseType": "draft"
       }
     ]
   },
