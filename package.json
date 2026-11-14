@@ -1,7 +1,7 @@
 {
   "name": "cartouche",
   "productName": "Cartouche",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Bibliothèque Game Boy et DS propulsée par RetroArch",
   "main": "src/main.js",
   "scripts": {
