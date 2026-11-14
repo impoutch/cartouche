@@ -83,7 +83,7 @@ function newSavePath(romPath, label) {
 }
 
 // Prépare le dossier de travail. choice = { type: 'file', file } | { type: 'new', label } | { type: 'none' }
-function prepareSession(romPath, choice, workDir) {
+function prepareSession(romPath, choice, workDir, innerBase = null) {
   fs.rmSync(workDir, { recursive: true, force: true });
   fs.mkdirSync(workDir, { recursive: true });
   const base = baseOf(romPath);
@@ -91,7 +91,8 @@ function prepareSession(romPath, choice, workDir) {
   if (choice.type === 'file') {
     target = choice.file;
     // Les deux noms : .srm (norme RetroArch) et .sav (au cas où un moteur l'utilise directement)
-    for (const ext of ['.srm', '.sav']) fs.copyFileSync(target, path.join(workDir, base + ext));
+    const bases = [...new Set([base, innerBase].filter(Boolean))];
+    for (const b of bases) for (const ext of ['.srm', '.sav']) fs.copyFileSync(target, path.join(workDir, b + ext));
   } else if (choice.type === 'new') {
     target = newSavePath(romPath, choice.label);
   }
@@ -109,9 +110,11 @@ function prepareSession(romPath, choice, workDir) {
 // Fin de partie : recopie la sauvegarde du dossier de travail vers le bon .sav
 function finishSession(session) {
   if (!session || !session.target) return { status: 'sans-sauvegarde' };
-  const candidates = ['.srm', '.sav']
-    .map((ext) => path.join(session.workDir, session.base + ext))
-    .filter((f) => fs.existsSync(f))
+  // Le fichier le plus récemment écrit par RetroArch dans le dossier de travail
+  let names = [];
+  try { names = fs.readdirSync(session.workDir); } catch { /* dossier absent */ }
+  const candidates = names.filter((n) => /\.(srm|sav)$/i.test(n))
+    .map((n) => path.join(session.workDir, n))
     .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
   if (!candidates.length) return { status: 'rien' };
   // Nouvelle partie où l'on n'a jamais sauvegardé : on ne crée pas de .sav vide

@@ -126,7 +126,7 @@ function render() {
     else if (query) empty.innerHTML = '<p>Aucun jeu ne correspond à ta recherche.</p>';
     else if (filter === 'fav') empty.innerHTML = '<p>Pas encore de favoris. Clique sur l’étoile ★ d’un jeu.</p>';
     else if (filter === 'recent') empty.innerHTML = '<p>Aucun jeu lancé pour l’instant.</p>';
-    else empty.innerHTML = '<p>Aucun jeu trouvé dans tes dossiers (.gb, .gbc, .gba, .nds).</p>';
+    else empty.innerHTML = '<p>Aucun jeu trouvé dans tes dossiers (.gb, .gbc, .gba, .nds, .zip, .7z).</p>';
     return;
   }
   empty.classList.add('hidden');

@@ -7,7 +7,8 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const { installAll } = require('./installer');
 const { listSaves, prepareSession, finishSession } = require('./saves');
-const { identify } = require('./identify');
+const { identify, inspectArchive } = require('./identify');
+const ARCHIVES = ['.zip', '.7z'];
 
 // ---------- Consoles prises en charge ----------
 const GB_CORES = ['sameboy_libretro.dll', 'gambatte_libretro.dll', 'mgba_libretro.dll'];
@@ -62,6 +63,11 @@ function scanDir(dir, depth, out) {
   for (const e of entries) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) { if (depth < 4) scanDir(full, depth + 1, out); continue; }
+    if (ARCHIVES.includes(path.extname(e.name).toLowerCase())) {
+      // Archive : la console sera déterminée en lisant son contenu
+      out.push({ path: full, raw: e.name.slice(0, -path.extname(e.name).length), system: null, archive: true });
+      continue;
+    }
     const system = systemForFile(e.name);
     if (system) {
       const raw = e.name.slice(0, -path.extname(e.name).length);
@@ -118,7 +124,14 @@ app.whenReady().then(() => {
   ipcMain.handle('games:scan', async () => {
     const out = [];
     for (const d of config.gamesDirs) scanDir(d, 0, out);
+    const games = [];
     for (const g of out) {
+      if (g.archive) {
+        const info = await inspectArchive(g.path, systemForFile);
+        if (!info) continue;                 // archive sans jeu Game Boy / GBA / DS
+        Object.assign(g, { system: info.system, thumbs: SYSTEMS[info.system].thumbs, crc: info.crc, inner: info.inner });
+      }
+      games.push(g);
       const id = await identify(g);     // nom officiel (pour la jaquette), ou null
       g.official = id.name;
       g.alts = id.alts;
@@ -126,7 +139,7 @@ app.whenReady().then(() => {
       g.saves = saves.length;
       g.savesEmpty = saves.length > 0 && saves.every((x) => x.empty);
     }
-    return out.sort((a, b) => a.raw.localeCompare(b.raw, 'fr'));
+    return games.sort((a, b) => a.raw.localeCompare(b.raw, 'fr'));
   });
 
   ipcMain.handle('saves:list', (_e, gamePath) => ({
@@ -140,7 +153,7 @@ app.whenReady().then(() => {
     return status;
   });
 
-  ipcMain.handle('game:launch', (_e, gamePath, system, choice) => {
+  ipcMain.handle('game:launch', async (_e, gamePath, system, choice) => {
     if (running) return { ok: false, error: 'Un jeu est déjà ouvert. Ferme-le d’abord.' };
     if (!config.retroarch || !fs.existsSync(config.retroarch)) return { ok: false, error: 'RetroArch introuvable. Vérifie les réglages.' };
     const core = findCore(system);
@@ -151,7 +164,13 @@ app.whenReady().then(() => {
     let session = null;
     if (config.externalSaves && choice) {
       try {
-        session = prepareSession(gamePath, choice, path.join(app.getPath('userData'), 'partie-en-cours'));
+        // Jeu dans une archive : RetroArch peut nommer la sauvegarde d'après le fichier intérieur
+        let innerBase = null;
+        if (ARCHIVES.includes(path.extname(gamePath).toLowerCase())) {
+          const info = await inspectArchive(gamePath, systemForFile);
+          if (info) innerBase = path.basename(info.inner, path.extname(info.inner));
+        }
+        session = prepareSession(gamePath, choice, path.join(app.getPath('userData'), 'partie-en-cours'), innerBase);
         args.push('--appendconfig', session.cfg);
         config.pendingSession = session;           // pour récupérer la sauvegarde si Cartouche plante
         if (choice.type === 'file') config.lastSave[gamePath] = choice.file;
