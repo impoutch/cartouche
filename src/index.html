@@ -17,6 +17,7 @@
       <div class="sep">Consoles</div>
       <button data-filter="gb"><i class="dot gb"></i>Game Boy <span class="count" id="c-gb"></span></button>
       <button data-filter="gbc"><i class="dot gbc"></i>Game Boy Color <span class="count" id="c-gbc"></span></button>
+      <button data-filter="gba"><i class="dot gba"></i>Game Boy Advance <span class="count" id="c-gba"></span></button>
       <button data-filter="nds"><i class="dot nds"></i>Nintendo DS <span class="count" id="c-nds"></span></button>
     </nav>
     <button id="btn-settings" class="settings-btn">⚙ Réglages</button>
@@ -46,7 +47,7 @@
 
       <div class="step">
         <h3><span class="num">1</span> Les moteurs de jeu</h3>
-        <p class="muted">Cartouche utilise RetroArch avec les moteurs SameBoy (Game Boy) et melonDS DS (DS). Un clic suffit pour tout installer (environ 250 Mo).</p>
+        <p class="muted">Cartouche utilise RetroArch avec les moteurs SameBoy (Game Boy), mGBA (Game Boy Advance) et melonDS DS (DS). Un clic suffit pour tout installer (environ 250 Mo).</p>
         <ul id="cores" class="cores"></ul>
         <div id="install-box" class="install-box hidden">
           <div id="install-label" class="small"></div>
@@ -67,7 +68,7 @@
 
       <div class="step">
         <h3><span class="num">2</span> Tes dossiers de jeux</h3>
-        <p class="muted">Fichiers reconnus : .gb, .gbc, .nds (les sous-dossiers sont inclus).</p>
+        <p class="muted">Fichiers reconnus : .gb, .gbc, .gba, .nds (les sous-dossiers sont inclus).</p>
         <ul id="dirs" class="dirs"></ul>
         <button id="btn-add-dir">+ Ajouter un dossier</button>
       </div>

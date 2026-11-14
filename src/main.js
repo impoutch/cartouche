@@ -12,6 +12,8 @@ const GB_CORES = ['sameboy_libretro.dll', 'gambatte_libretro.dll', 'mgba_libretr
 const SYSTEMS = {
   gb:  { label: 'Game Boy',       ext: ['.gb'],          thumbs: 'Nintendo - Game Boy',       cores: GB_CORES },
   gbc: { label: 'Game Boy Color', ext: ['.gbc'],         thumbs: 'Nintendo - Game Boy Color', cores: GB_CORES },
+  gba: { label: 'Game Boy Advance', ext: ['.gba'],      thumbs: 'Nintendo - Game Boy Advance',
+         cores: ['mgba_libretro.dll', 'vbam_libretro.dll', 'vba_next_libretro.dll'] },
   nds: { label: 'Nintendo DS',    ext: ['.nds', '.dsi'], thumbs: 'Nintendo - Nintendo DS',
          cores: ['melondsds_libretro.dll', 'melonds_libretro.dll', 'desmume_libretro.dll'] },
 };

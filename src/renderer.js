@@ -1,7 +1,7 @@
 // Cartouche — interface
 const $ = (s) => document.querySelector(s);
-const LABELS = { gb: 'Game Boy', gbc: 'Game Boy Color', nds: 'Nintendo DS' };
-const TITLES = { all: 'Tous les jeux', fav: 'Favoris', recent: 'Récents', gb: 'Game Boy', gbc: 'Game Boy Color', nds: 'Nintendo DS' };
+const LABELS = { gb: 'Game Boy', gbc: 'Game Boy Color', gba: 'Game Boy Advance', nds: 'Nintendo DS' };
+const TITLES = { all: 'Tous les jeux', fav: 'Favoris', recent: 'Récents', gb: 'Game Boy', gbc: 'Game Boy Color', gba: 'Game Boy Advance', nds: 'Nintendo DS' };
 
 let config = null;
 let games = [];
@@ -39,7 +39,7 @@ function updateCounts() {
   set('#c-all', games.length);
   set('#c-fav', games.filter((g) => config.favorites.includes(g.path)).length);
   set('#c-recent', games.filter((g) => config.recent[g.path]).length);
-  for (const k of ['gb', 'gbc', 'nds']) set('#c-' + k, games.filter((g) => g.system === k).length);
+  for (const k of ['gb', 'gbc', 'gba', 'nds']) set('#c-' + k, games.filter((g) => g.system === k).length);
 }
 
 function card(g) {
@@ -114,7 +114,7 @@ function render() {
     else if (query) empty.innerHTML = '<p>Aucun jeu ne correspond à ta recherche.</p>';
     else if (filter === 'fav') empty.innerHTML = '<p>Pas encore de favoris. Clique sur l’étoile ★ d’un jeu.</p>';
     else if (filter === 'recent') empty.innerHTML = '<p>Aucun jeu lancé pour l’instant.</p>';
-    else empty.innerHTML = '<p>Aucun jeu trouvé dans tes dossiers (.gb, .gbc, .nds).</p>';
+    else empty.innerHTML = '<p>Aucun jeu trouvé dans tes dossiers (.gb, .gbc, .gba, .nds).</p>';
     return;
   }
   empty.classList.add('hidden');
@@ -153,11 +153,12 @@ async function renderSettings() {
   };
   line(st.retroarchOk, st.retroarchOk ? 'RetroArch installé' : 'RetroArch pas encore installé');
   line(!!st.gb, 'Game Boy / Color : ' + (st.gb || 'moteur manquant'));
+  line(!!st.gba, 'Game Boy Advance : ' + (st.gba || 'moteur manquant'));
   line(!!st.nds, 'Nintendo DS : ' + (st.nds || 'moteur manquant'));
   $('#btn-open-ra').classList.toggle('hidden', !st.retroarchOk);
   const btn = $('#btn-install');
   if (!installing) {
-    const allOk = st.retroarchOk && st.gb && st.nds;
+    const allOk = st.retroarchOk && st.gb && st.gba && st.nds;
     btn.disabled = allOk;
     btn.textContent = allOk ? 'Tout est installé ✔' : st.retroarchOk ? 'Installer les moteurs manquants' : 'Tout installer automatiquement';
   }
@@ -259,5 +260,5 @@ $('#btn-check-update').onclick = async (e) => {
   config = await window.api.getConfig();
   await rescan();
   const st = await window.api.coresStatus();
-  if (!st.retroarchOk || !config.gamesDirs.length || !st.gb || !st.nds) openSettings();
+  if (!st.retroarchOk || !config.gamesDirs.length || !st.gb || !st.gba || !st.nds) openSettings();
 })();
