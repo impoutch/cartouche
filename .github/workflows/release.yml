@@ -20,7 +20,20 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Créer l'étiquette de version
+        id: tag
+        shell: bash
+        run: |
+          V="v$(node -p "require('./package.json').version")"
+          if git ls-remote --exit-code --tags origin "refs/tags/$V" >/dev/null; then
+            echo "La version $V est déjà publiée : rien à faire."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            git tag "$V" && git push origin "$V"
+          fi
       - run: npm ci
+        if: steps.tag.outputs.skip != 'true'
       - run: npx electron-builder --win nsis --publish always
+        if: steps.tag.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -50,5 +50,11 @@
       }
     ]
   },
-  "homepage": "https://github.com/impoutch/cartouche"
+  "homepage": "https://github.com/impoutch/cartouche",
+  "keywords": [
+    "game boy",
+    "nintendo ds",
+    "retroarch",
+    "émulation"
+  ]
 }
