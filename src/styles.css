@@ -177,3 +177,8 @@ button:disabled { opacity: .5; cursor: default; }
 /* Langue */
 .lang-row { margin: 8px 0 2px; gap: 12px; }
 .select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: inherit; }
+
+/* Langues du jeu */
+.langs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.lang { font-size: 10px; font-weight: 700; letter-spacing: .5px; padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.lang.mine { color: #fff; background: var(--accent); border-color: var(--accent); }

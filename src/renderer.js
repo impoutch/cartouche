@@ -17,6 +17,30 @@ const thumbUrl = (system, name) =>
 const coverUrls = (g) => [...new Set([g.official, g.raw, ...(g.alts || [])].filter(Boolean))].map((n) => thumbUrl(g.thumbs, n));
 const titleOf = (g) => cleanTitle(g.official || g.raw);
 
+// Langues d'un jeu, d'après son nom officiel (convention No-Intro) :
+//  - liste explicite : « (En,Fr,De,Es,It) »
+//  - sinon déduite de la région : « (France) » → français, « (USA) » ou « (Europe) » → anglais…
+const LANG_NAMES = { en: 'anglais', fr: 'français', de: 'allemand', es: 'espagnol', it: 'italien', ja: 'japonais',
+  nl: 'néerlandais', sv: 'suédois', da: 'danois', no: 'norvégien', fi: 'finnois', pt: 'portugais', ko: 'coréen',
+  zh: 'chinois', pl: 'polonais', ru: 'russe' };
+const REGION_LANG = { france: 'fr', germany: 'de', spain: 'es', italy: 'it', japan: 'ja', usa: 'en', europe: 'en',
+  uk: 'en', australia: 'en', canada: 'en', world: 'en', netherlands: 'nl', sweden: 'sv', denmark: 'da', norway: 'no',
+  finland: 'fi', portugal: 'pt', brazil: 'pt', korea: 'ko', china: 'zh', taiwan: 'zh', 'hong kong': 'zh',
+  russia: 'ru', poland: 'pl', quebec: 'fr', belgium: 'fr' };
+function languagesOf(name) {
+  if (!name) return [];
+  const groups = [...name.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]);
+  for (const grp of groups) {
+    const parts = grp.split(/\s*[,+]\s*/).map((x) => x.toLowerCase());
+    if (parts.length && parts.every((x) => LANG_NAMES[x])) return parts;   // liste de langues explicite
+  }
+  for (const grp of groups) {
+    const langs = grp.split(/\s*,\s*/).map((x) => REGION_LANG[x.toLowerCase()]).filter(Boolean);
+    if (langs.length) return [langs[0]];                                    // une seule langue par région
+  }
+  return [];
+}
+
 function toast(msg, ms = 3500) {
   const t = $('#toast');
   t.textContent = msg;
@@ -102,6 +126,21 @@ function card(g) {
     sv.title = g.savesEmpty ? 'Fichier .sav présent, mais sans partie dedans'
       : `${g.saves} sauvegarde${g.saves > 1 ? 's' : ''} à côté du jeu`;
     meta.append(sv);
+  }
+  // Langues contenues dans le jeu (nom officiel, sinon nom du fichier)
+  const langs = languagesOf(g.official) .length ? languagesOf(g.official) : languagesOf(g.raw);
+  if (langs.length) {
+    const lr = document.createElement('div');
+    lr.className = 'langs';
+    lr.title = 'Langues du jeu : ' + langs.map((l) => LANG_NAMES[l]).join(', ')
+      + (g.official ? '' : ' (d’après le nom du fichier)');
+    for (const l of langs) {
+      const chip = document.createElement('span');
+      chip.className = 'lang' + (l === (config.language || 'fr') ? ' mine' : '');
+      chip.textContent = l.toUpperCase();
+      lr.append(chip);
+    }
+    meta.append(lr);
   }
 
   el.append(cover, meta);
@@ -307,7 +346,7 @@ $('#btn-add-dir').onclick = async () => {
 };
 $('#opt-fullscreen').onchange = (e) => window.api.setConfig({ fullscreen: e.target.checked });
 $('#opt-saves').onchange = (e) => window.api.setConfig({ externalSaves: e.target.checked });
-$('#opt-language').onchange = async (e) => { config = await window.api.setConfig({ language: e.target.value }); };
+$('#opt-language').onchange = async (e) => { config = await window.api.setConfig({ language: e.target.value }); render(); };
 $('#opt-volume').oninput = (e) => { $('#volume-value').textContent = e.target.value + ' %'; };
 $('#opt-volume').onchange = async (e) => { config = await window.api.setConfig({ volume: Number(e.target.value) }); };
 $('#opt-mute').onchange = async (e) => { config = await window.api.setConfig({ mute: e.target.checked }); };
