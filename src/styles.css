@@ -156,3 +156,9 @@ button:disabled { opacity: .5; cursor: default; }
 .text-input { margin-top: 8px; width: 100%; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 7px 10px; outline: none; user-select: text; font: inherit; }
 .text-input:focus { border-color: var(--accent); }
 .badge.save.empty { color: var(--muted); }
+
+/* Son */
+.volume-row { margin: 6px 0 10px; }
+.volume-row input[type=range] { flex: 1; accent-color: var(--accent); }
+.volume-value { width: 48px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.toggle { margin: 4px 0; }

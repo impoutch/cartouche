@@ -35,7 +35,7 @@ function defaultRetroArchCandidates() {
 
 // ---------- Réglages (sauvegardés dans un fichier JSON) ----------
 const configPath = () => path.join(app.getPath('userData'), 'config.json');
-const DEFAULT_CONFIG = { retroarch: '', gamesDirs: [], fullscreen: true, externalSaves: true, favorites: [], recent: {}, lastSave: {}, pendingSession: null };
+const DEFAULT_CONFIG = { retroarch: '', gamesDirs: [], fullscreen: true, externalSaves: true, volume: 100, mute: false, lowLatency: false, menuSounds: false, favorites: [], recent: {}, lastSave: {}, pendingSession: null };
 
 function loadConfig() {
   let cfg = { ...DEFAULT_CONFIG };
@@ -82,6 +82,22 @@ function findCore(system) {
   const dir = coresDir();
   if (!dir) return null;
   return SYSTEMS[system].cores.find(c => fs.existsSync(path.join(dir, c))) || null;
+}
+
+// ---------- Son ----------
+// Réglages audio transmis à RetroArch à chaque lancement (volume en décibels pour RetroArch)
+function writeAudioConfig() {
+  const v = Math.max(0, Math.min(100, Number(config.volume ?? 100)));
+  const db = v > 0 ? (20 * Math.log10(v / 100)).toFixed(1) : '-80.0';
+  const file = path.join(app.getPath('userData'), 'cartouche-son.cfg');
+  fs.writeFileSync(file, [
+    `audio_volume = "${db}"`,
+    `audio_mute_enable = "${config.mute || v === 0 ? 'true' : 'false'}"`,
+    `audio_latency = "${config.lowLatency ? 32 : 64}"`,
+    `audio_enable_menu = "${config.menuSounds ? 'true' : 'false'}"`,
+    '',
+  ].join('\n'));
+  return file;
 }
 
 // ---------- Fenêtre ----------
@@ -160,6 +176,8 @@ app.whenReady().then(() => {
     if (!core) return { ok: false, error: `Aucun moteur installé pour ${SYSTEMS[system].label}. Va dans Réglages pour voir comment l’installer.` };
     const args = ['-L', path.join(coresDir(), core), gamePath];
     if (config.fullscreen) args.push('-f');
+    const extraConfigs = [];
+    try { extraConfigs.push(writeAudioConfig()); } catch { /* son par défaut */ }
     // Sauvegardes externes : la sauvegarde choisie est copiée dans un dossier de travail
     let session = null;
     if (config.externalSaves && choice) {
@@ -171,13 +189,14 @@ app.whenReady().then(() => {
           if (info) innerBase = path.basename(info.inner, path.extname(info.inner));
         }
         session = prepareSession(gamePath, choice, path.join(app.getPath('userData'), 'partie-en-cours'), innerBase);
-        args.push('--appendconfig', session.cfg);
+        extraConfigs.push(session.cfg);
         config.pendingSession = session;           // pour récupérer la sauvegarde si Cartouche plante
         if (choice.type === 'file') config.lastSave[gamePath] = choice.file;
       } catch (err) {
         return { ok: false, error: 'Préparation de la sauvegarde impossible : ' + err.message };
       }
     }
+    if (extraConfigs.length) args.push('--appendconfig', extraConfigs.join('|'));
     try {
       running = spawn(config.retroarch, args, { cwd: path.dirname(config.retroarch), detached: false });
     } catch (err) {

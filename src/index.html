@@ -81,6 +81,19 @@
         <p class="muted small">Astuce : dans un jeu, la touche <b>F1</b> ouvre le menu (sauvegardes, manettes) et <b>Échap</b> quitte.</p>
       </div>
 
+      <div class="step">
+        <h3><span class="num">4</span> Son</h3>
+        <div class="row volume-row">
+          <span>🔈</span>
+          <input type="range" id="opt-volume" min="0" max="100" step="5" />
+          <span id="volume-value" class="volume-value">100 %</span>
+        </div>
+        <label class="toggle"><input type="checkbox" id="opt-mute" /> Couper le son des jeux</label>
+        <label class="toggle"><input type="checkbox" id="opt-latency" /> Réduire le décalage du son <span class="muted small">(si tu entends des craquements, décoche)</span></label>
+        <label class="toggle"><input type="checkbox" id="opt-menusounds" /> Sons du menu en jeu (F1)</label>
+        <p class="muted small">Appliqué au prochain lancement d’un jeu.</p>
+      </div>
+
       <button id="btn-done" class="primary wide">C’est parti</button>
       <p class="muted small center"><span id="version"></span> · <a href="#" id="btn-check-update">Vérifier les mises à jour</a></p>
     </div>

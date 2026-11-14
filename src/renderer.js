@@ -207,6 +207,11 @@ async function renderSettings() {
   $('#ra-path').textContent = config.retroarch || 'Non défini';
   $('#opt-fullscreen').checked = !!config.fullscreen;
   $('#opt-saves').checked = config.externalSaves !== false;
+  $('#opt-volume').value = config.volume ?? 100;
+  $('#volume-value').textContent = (config.volume ?? 100) + ' %';
+  $('#opt-mute').checked = !!config.mute;
+  $('#opt-latency').checked = !!config.lowLatency;
+  $('#opt-menusounds').checked = !!config.menuSounds;
 
   const st = await window.api.coresStatus();
   const cores = $('#cores');
@@ -300,6 +305,11 @@ $('#btn-add-dir').onclick = async () => {
 };
 $('#opt-fullscreen').onchange = (e) => window.api.setConfig({ fullscreen: e.target.checked });
 $('#opt-saves').onchange = (e) => window.api.setConfig({ externalSaves: e.target.checked });
+$('#opt-volume').oninput = (e) => { $('#volume-value').textContent = e.target.value + ' %'; };
+$('#opt-volume').onchange = async (e) => { config = await window.api.setConfig({ volume: Number(e.target.value) }); };
+$('#opt-mute').onchange = async (e) => { config = await window.api.setConfig({ mute: e.target.checked }); };
+$('#opt-latency').onchange = async (e) => { config = await window.api.setConfig({ lowLatency: e.target.checked }); };
+$('#opt-menusounds').onchange = async (e) => { config = await window.api.setConfig({ menuSounds: e.target.checked }); };
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('#settings').classList.contains('hidden')) closeSettings();
   if (e.key === 'Escape' && !$('#picker').classList.contains('hidden')) closePicker();
