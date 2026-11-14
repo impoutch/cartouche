@@ -234,6 +234,7 @@ async function renderSettings() {
     btn.textContent = allOk ? 'Tout est installé ✔' : st.retroarchOk ? 'Installer les moteurs manquants' : 'Tout installer automatiquement';
   }
   $('#version').textContent = 'Cartouche v' + (await window.api.version());
+  renderControls();
 
   const dirs = $('#dirs');
   dirs.replaceChildren();
@@ -311,6 +312,7 @@ $('#opt-mute').onchange = async (e) => { config = await window.api.setConfig({ m
 $('#opt-latency').onchange = async (e) => { config = await window.api.setConfig({ lowLatency: e.target.checked }); };
 $('#opt-menusounds').onchange = async (e) => { config = await window.api.setConfig({ menuSounds: e.target.checked }); };
 document.addEventListener('keydown', (e) => {
+  if (capturing) return;
   if (e.key === 'Escape' && !$('#settings').classList.contains('hidden')) closeSettings();
   if (e.key === 'Escape' && !$('#picker').classList.contains('hidden')) closePicker();
   if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); $('#search').focus(); }
@@ -322,6 +324,70 @@ window.api.onExited(async (saved) => {
   rescan();
 });
 window.api.onError((msg) => toast('Erreur au lancement : ' + msg, 6000));
+
+// ---------- Contrôles ----------
+// Position physique de la touche (KeyboardEvent.code) → nom de touche RetroArch
+function codeToRetroArch(code) {
+  let m;
+  if ((m = /^Key([A-Z])$/.exec(code))) return m[1].toLowerCase();
+  if ((m = /^Digit(\d)$/.exec(code))) return 'num' + m[1];
+  if ((m = /^Numpad(\d)$/.exec(code))) return 'keypad' + m[1];
+  if ((m = /^F(\d{1,2})$/.exec(code))) return 'f' + m[1];
+  return {
+    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Enter: 'enter', NumpadEnter: 'kp_enter',
+    Space: 'space', ShiftLeft: 'shift', ShiftRight: 'rshift', ControlLeft: 'ctrl', ControlRight: 'rctrl', AltLeft: 'alt',
+    AltRight: 'ralt', Tab: 'tab', Backspace: 'backspace', Escape: 'escape', Comma: 'comma', Period: 'period',
+    Semicolon: 'semicolon', Slash: 'slash', Backslash: 'backslash', Minus: 'minus', Equal: 'equals',
+    BracketLeft: 'leftbracket', BracketRight: 'rightbracket', Quote: 'quote', Backquote: 'tilde', Insert: 'insert',
+    Delete: 'del', Home: 'home', End: 'end', PageUp: 'pageup', PageDown: 'pagedown', NumpadAdd: 'add',
+    NumpadSubtract: 'subtract', NumpadMultiply: 'multiply', NumpadDivide: 'divide', NumpadDecimal: 'kp_period',
+  }[code] || null;
+}
+const keyLabel = (e) => ({ ' ': 'Espace', Enter: 'Entrée', Escape: 'Échap', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←',
+  ArrowRight: '→', Shift: e.code === 'ShiftRight' ? 'Maj droite' : 'Maj', Control: e.code === 'ControlRight' ? 'Ctrl droit' : 'Ctrl',
+  Alt: 'Alt', Tab: 'Tab', Backspace: 'Retour' }[e.key] || (e.key.length === 1 ? e.key.toUpperCase() : e.key));
+
+let controlsMeta = null;
+let capturing = null;
+async function renderControls() {
+  if (!controlsMeta) controlsMeta = await window.api.controlsList();
+  const b = { ...controlsMeta.defaults, ...(config.bindings || {}) };
+  for (const [boxId, list] of [['#controls-actions', controlsMeta.actions], ['#controls-hotkeys', controlsMeta.hotkeys]]) {
+    const box = $(boxId);
+    box.replaceChildren();
+    for (const { key, label } of list) {
+      const name = document.createElement('span');
+      name.textContent = label;
+      const btn = document.createElement('button');
+      btn.className = 'keycap';
+      btn.textContent = b[key] ? b[key].label : '—';
+      btn.onclick = () => {
+        if (capturing) capturing.btn.classList.remove('listening');
+        capturing = { key, btn };
+        btn.classList.add('listening');
+        btn.textContent = 'Appuie sur une touche…';
+      };
+      box.append(name, btn);
+    }
+  }
+}
+document.addEventListener('keydown', async (e) => {
+  if (!capturing) return;
+  e.preventDefault(); e.stopPropagation();
+  const { key } = capturing;
+  capturing = null;
+  if (e.code === 'Escape' && key !== 'input_exit_emulator') { renderControls(); return; }
+  const rk = codeToRetroArch(e.code);
+  if (!rk) { toast('Cette touche n’est pas prise en charge.'); renderControls(); return; }
+  const b = { ...controlsMeta.defaults, ...(config.bindings || {}) };
+  // Si la touche servait déjà ailleurs, on échange les deux
+  const other = Object.keys(b).find((k) => k !== key && b[k] && b[k].rk === rk);
+  if (other) { b[other] = b[key]; toast('Touche échangée avec une autre action.'); }
+  b[key] = { rk, label: keyLabel(e) };
+  config = await window.api.setConfig({ bindings: b });
+  renderControls();
+}, true);
+$('#btn-reset-controls').onclick = async () => { config = await window.api.setConfig({ bindings: {} }); renderControls(); toast('Touches par défaut rétablies.'); };
 
 // ---------- Mises à jour ----------
 const banner = (text) => { $('#update-text').textContent = text; $('#update-banner').classList.remove('hidden'); };

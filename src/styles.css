@@ -162,3 +162,10 @@ button:disabled { opacity: .5; cursor: default; }
 .volume-row input[type=range] { flex: 1; accent-color: var(--accent); }
 .volume-value { width: 48px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .toggle { margin: 4px 0; }
+
+/* Contrôles */
+.sub { margin: 12px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: #5d637a; }
+.controls-grid { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 6px 14px; align-items: center; margin-bottom: 8px; }
+.keycap { min-width: 96px; background: var(--bg) !important; color: var(--text) !important; border: 1px solid var(--line) !important; border-bottom-width: 3px !important; border-radius: 8px; padding: 5px 10px !important; font-weight: 600; font-family: Consolas, monospace; }
+.keycap:hover { border-color: var(--accent) !important; }
+.keycap.listening { border-color: var(--accent) !important; color: var(--accent) !important; font-family: inherit; font-weight: 500; }

@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('api', {
   installAll: () => ipcRenderer.invoke('setup:install'),
   onSetupProgress: (cb) => ipcRenderer.on('setup:progress', (_e, p) => cb(p)),
   version: () => ipcRenderer.invoke('app:version'),
+  controlsList: () => ipcRenderer.invoke('controls:list'),
   onUpdateAvailable: (cb) => ipcRenderer.on('update:available', (_e, v) => cb(v)),
   onUpdateProgress: (cb) => ipcRenderer.on('update:progress', (_e, v) => cb(v)),
   onUpdateReady: (cb) => ipcRenderer.on('update:ready', (_e, v) => cb(v)),

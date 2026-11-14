@@ -8,6 +8,7 @@ const { spawn } = require('child_process');
 const { installAll } = require('./installer');
 const { listSaves, prepareSession, finishSession } = require('./saves');
 const { identify, inspectArchive } = require('./identify');
+const controls = require('./controls');
 const ARCHIVES = ['.zip', '.7z'];
 
 // ---------- Consoles prises en charge ----------
@@ -35,7 +36,7 @@ function defaultRetroArchCandidates() {
 
 // ---------- Réglages (sauvegardés dans un fichier JSON) ----------
 const configPath = () => path.join(app.getPath('userData'), 'config.json');
-const DEFAULT_CONFIG = { retroarch: '', gamesDirs: [], fullscreen: true, externalSaves: true, volume: 100, mute: false, lowLatency: false, menuSounds: false, favorites: [], recent: {}, lastSave: {}, pendingSession: null };
+const DEFAULT_CONFIG = { retroarch: '', gamesDirs: [], fullscreen: true, externalSaves: true, volume: 100, mute: false, lowLatency: false, menuSounds: false, bindings: {}, favorites: [], recent: {}, lastSave: {}, pendingSession: null };
 
 function loadConfig() {
   let cfg = { ...DEFAULT_CONFIG };
@@ -97,6 +98,13 @@ function writeAudioConfig() {
     `audio_enable_menu = "${config.menuSounds ? 'true' : 'false'}"`,
     '',
   ].join('\n'));
+  return file;
+}
+
+// ---------- Contrôles ----------
+function writeControlsConfig() {
+  const file = path.join(app.getPath('userData'), 'cartouche-touches.cfg');
+  fs.writeFileSync(file, controls.configLines(config.bindings).lines.join('\n') + '\n');
   return file;
 }
 
@@ -178,6 +186,7 @@ app.whenReady().then(() => {
     if (config.fullscreen) args.push('-f');
     const extraConfigs = [];
     try { extraConfigs.push(writeAudioConfig()); } catch { /* son par défaut */ }
+    try { extraConfigs.push(writeControlsConfig()); } catch { /* touches par défaut */ }
     // Sauvegardes externes : la sauvegarde choisie est copiée dans un dossier de travail
     let session = null;
     if (config.externalSaves && choice) {
@@ -247,6 +256,11 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('app:version', () => app.getVersion());
+  ipcMain.handle('controls:list', () => ({
+    actions: controls.ACTIONS.map(([key, label]) => ({ key, label })),
+    hotkeys: controls.HOTKEYS.map(([key, label]) => ({ key, label })),
+    defaults: controls.defaults(),
+  }));
 
   createWindow();
   setupUpdater();
