@@ -1,0 +1,53 @@
+{
+  "name": "cartouche",
+  "productName": "Cartouche",
+  "version": "0.2.0",
+  "description": "Bibliothèque Game Boy et DS propulsée par RetroArch",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --publish never",
+    "release": "electron-builder --win nsis --publish always"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/packager": "^18.3.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^26.18.0"
+  },
+  "dependencies": {
+    "7zip-bin": "^5.2.0",
+    "adm-zip": "^0.6.1",
+    "electron-updater": "^6.8.11"
+  },
+  "author": "Poutch",
+  "build": {
+    "appId": "com.poutch.cartouche",
+    "productName": "Cartouche",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/7zip-bin/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "Cartouche-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Cartouche",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "impoutch",
+        "repo": "cartouche",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

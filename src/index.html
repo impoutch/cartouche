@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: https://thumbnails.libretro.com; style-src 'self'; script-src 'self'" />
+  <title>Cartouche</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="logo">▣</span> Cartouche</div>
+    <nav id="nav">
+      <button data-filter="all" class="active">Tous les jeux <span class="count" id="c-all"></span></button>
+      <button data-filter="fav">★ Favoris <span class="count" id="c-fav"></span></button>
+      <button data-filter="recent">◷ Récents <span class="count" id="c-recent"></span></button>
+      <div class="sep">Consoles</div>
+      <button data-filter="gb"><i class="dot gb"></i>Game Boy <span class="count" id="c-gb"></span></button>
+      <button data-filter="gbc"><i class="dot gbc"></i>Game Boy Color <span class="count" id="c-gbc"></span></button>
+      <button data-filter="nds"><i class="dot nds"></i>Nintendo DS <span class="count" id="c-nds"></span></button>
+    </nav>
+    <button id="btn-settings" class="settings-btn">⚙ Réglages</button>
+  </aside>
+
+  <main>
+    <div id="update-banner" class="update-banner hidden">
+      <span id="update-text"></span>
+      <button id="btn-update" class="primary hidden">Redémarrer et mettre à jour</button>
+    </div>
+    <header class="topbar">
+      <h1 id="view-title">Tous les jeux</h1>
+      <input id="search" type="search" placeholder="Rechercher un jeu…" autocomplete="off" />
+      <button id="btn-refresh" class="ghost" title="Rescanner les dossiers">↻</button>
+    </header>
+    <section id="grid" class="grid"></section>
+    <section id="empty" class="empty hidden"></section>
+  </main>
+
+  <!-- Réglages / premier lancement -->
+  <div id="settings" class="overlay hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Réglages</h2>
+        <button id="btn-close-settings" class="ghost">✕</button>
+      </div>
+
+      <div class="step">
+        <h3><span class="num">1</span> Les moteurs de jeu</h3>
+        <p class="muted">Cartouche utilise RetroArch avec les moteurs SameBoy (Game Boy) et melonDS DS (DS). Un clic suffit pour tout installer (environ 250 Mo).</p>
+        <ul id="cores" class="cores"></ul>
+        <div id="install-box" class="install-box hidden">
+          <div id="install-label" class="small"></div>
+          <div class="bar"><div id="install-bar" class="bar-fill"></div></div>
+        </div>
+        <div class="row">
+          <button id="btn-install" class="primary">Tout installer automatiquement</button>
+          <button id="btn-open-ra" class="ghost">Ouvrir RetroArch</button>
+        </div>
+        <details class="advanced">
+          <summary>J’ai déjà RetroArch sur mon PC</summary>
+          <div class="row">
+            <code id="ra-path" class="path">Non défini</code>
+            <button id="btn-pick-ra" class="ghost">Choisir retroarch.exe…</button>
+          </div>
+        </details>
+      </div>
+
+      <div class="step">
+        <h3><span class="num">2</span> Tes dossiers de jeux</h3>
+        <p class="muted">Fichiers reconnus : .gb, .gbc, .nds (les sous-dossiers sont inclus).</p>
+        <ul id="dirs" class="dirs"></ul>
+        <button id="btn-add-dir">+ Ajouter un dossier</button>
+      </div>
+
+      <div class="step">
+        <h3><span class="num">3</span> Affichage</h3>
+        <label class="toggle"><input type="checkbox" id="opt-fullscreen" /> Lancer les jeux en plein écran</label>
+        <p class="muted small">Astuce : dans un jeu, la touche <b>F1</b> ouvre le menu (sauvegardes, manettes) et <b>Échap</b> quitte.</p>
+      </div>
+
+      <button id="btn-done" class="primary wide">C’est parti</button>
+      <p id="version" class="muted small center"></p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="renderer.js"></script>
+</body>
+</html>
