@@ -1,4 +1,4 @@
-# Ménage ponctuel : supprime les versions incomplètes publiées pendant la mise en place
+# Ménage ponctuel : supprime les anciennes versions 0.2.0 et 0.2.1 et leurs étiquettes
 name: Nettoyage des versions
 on:
   push:
@@ -14,8 +14,11 @@ jobs:
       REPO: ${{ github.repository }}
     steps:
       - run: |
-          for id in $(gh api "repos/$REPO/releases" --jq '.[] | select([.assets[].name] | index("latest.yml") | not) | .id'); do
-            echo "Suppression de la version incomplète $id"
-            gh api -X DELETE "repos/$REPO/releases/$id"
+          for tag in v0.2.0 v0.2.1; do
+            for id in $(gh api "repos/$REPO/releases" --jq ".[] | select(.tag_name==\"$tag\") | .id"); do
+              echo "Suppression de la version $tag ($id)"
+              gh api -X DELETE "repos/$REPO/releases/$id"
+            done
+            gh api -X DELETE "repos/$REPO/git/refs/tags/$tag" && echo "Étiquette $tag supprimée" || true
           done
           gh api "repos/$REPO/releases" --jq '.[] | [.tag_name, ([.assets[].name] | join(", "))] | @tsv'
