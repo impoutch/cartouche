@@ -14,8 +14,23 @@ const CORES_URL = `${BUILDBOT}/nightly/windows/x86_64/latest`;
 const WANTED_CORES = ['sameboy_libretro.dll', 'melondsds_libretro.dll'];
 
 const installRoot = () => path.join(app.getPath('userData'), 'retroarch');
-// 7-Zip est fourni avec l'app (dézippé hors de l'archive asar pour pouvoir s'exécuter)
-const sevenZip = () => require('7zip-bin').path7za.replace('app.asar', 'app.asar.unpacked');
+// 7-Zip : on utilise la version officielle la plus récente (7zr.exe, 7-zip.org), car l'archive
+// de RetroArch est créée avec un 7-Zip récent. Repli : la version intégrée à l'app.
+const bundled7z = () => require('7zip-bin').path7za.replace('app.asar', 'app.asar.unpacked');
+async function sevenZip(progress) {
+  const exe = path.join(app.getPath('userData'), 'outils', '7zr.exe');
+  if (fs.existsSync(exe) && fs.statSync(exe).size > 100e3) return exe;
+  try {
+    progress('Préparation de l’outil de décompression…', null);
+    fs.mkdirSync(path.dirname(exe), { recursive: true });
+    await download('https://www.7-zip.org/a/7zr.exe', exe + '.part');
+    if (fs.statSync(exe + '.part').size < 100e3) throw new Error('fichier trop petit');
+    fs.renameSync(exe + '.part', exe);
+    return exe;
+  } catch {
+    return bundled7z();
+  }
+}
 
 const cmpVer = (a, b) => {
   const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
@@ -31,6 +46,7 @@ async function download(url, dest, onProgress) {
   const stream = Readable.fromWeb(res.body);
   stream.on('data', (c) => { done += c.length; if (onProgress) onProgress(done, total); });
   await pipeline(stream, fs.createWriteStream(dest));
+  if (total && done !== total) throw new Error(`Téléchargement incomplet (${done} octets sur ${total}).`);
   return done;
 }
 
@@ -57,11 +73,11 @@ async function findRetroArchUrl() {
   return candidates[0];
 }
 
-function extract7z(archive, outDir) {
+function extract7z(sevenZipExe, archive, outDir) {
   return new Promise((resolve, reject) => {
     // -bso0 -bsp0 : 7-Zip n'écrit rien à l'écran. Sinon, sa longue liste de fichiers remplit
     // le tuyau de sortie que personne ne lit, et la décompression se bloque indéfiniment.
-    const p = spawn(sevenZip(), ['x', archive, `-o${outDir}`, '-y', '-bso0', '-bsp0'], {
+    const p = spawn(sevenZipExe, ['x', archive, `-o${outDir}`, '-y', '-bso0', '-bsp0'], {
       windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'],
     });
     let err = '';
@@ -103,25 +119,42 @@ async function installCores(retroarchExe, progress) {
 
 // Installation complète : RetroArch (si besoin) + moteurs
 async function installAll(currentExe, progress) {
-  let exe = currentExe && fs.existsSync(currentExe) ? currentExe : findExe(installRoot());
+  // Un RetroArch installé par Cartouche n'est fiable que si l'installation est allée au bout
+  // (fichier témoin). Sinon, c'est un reste d'essai raté : on recommence proprement.
+  const marker = path.join(installRoot(), '.installation-terminee');
+  const ownExe = fs.existsSync(marker) ? findExe(installRoot()) : null;
+  let exe = currentExe && fs.existsSync(currentExe) && !currentExe.startsWith(installRoot()) ? currentExe : ownExe;
 
   if (!exe) {
     const root = installRoot();
     progress('Recherche de la dernière version de RetroArch…', null);
     const url = await findRetroArchUrl();
-    const archive = path.join(app.getPath('temp'), 'RetroArch.7z');
-    const size = await download(url, archive, (d, t) =>
-      progress(`Téléchargement de RetroArch… (${Math.round(d / 1e6)} Mo${t ? ' / ' + Math.round(t / 1e6) + ' Mo' : ''})`, t ? d / t : null));
-    if (size < 50e6) throw new Error('Le fichier RetroArch reçu est incomplet. Réessaie plus tard.');
-    progress('Décompression de RetroArch (quelques minutes)…', null);
-    // On décompresse dans un dossier temporaire, puis on le renomme : une installation
-    // interrompue ne laisse jamais un RetroArch à moitié décompressé.
+    const archive = path.join(app.getPath('temp'), 'Cartouche-RetroArch.7z');
     const tmpDir = root + '-tmp';
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-    await extract7z(archive, tmpDir);
+    const zipTool = await sevenZip(progress);
+
+    // Deux essais : si l'archive est abîmée, on la retélécharge une fois
+    for (let attempt = 1; ; attempt++) {
+      try {
+        fs.rmSync(archive, { force: true });
+        const size = await download(url, archive, (d, t) =>
+          progress(`Téléchargement de RetroArch… (${Math.round(d / 1e6)} Mo${t ? ' / ' + Math.round(t / 1e6) + ' Mo' : ''})${attempt > 1 ? ' — 2e essai' : ''}`, t ? d / t : null));
+        if (size < 50e6) throw new Error('Le fichier RetroArch reçu est incomplet.');
+        progress('Décompression de RetroArch (quelques minutes)…', null);
+        // On décompresse dans un dossier temporaire, puis on le renomme : une installation
+        // interrompue ne laisse jamais un RetroArch à moitié décompressé.
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+        await extract7z(zipTool, archive, tmpDir);
+        break;
+      } catch (err) {
+        if (attempt >= 2) throw err;
+        progress('Le fichier semble abîmé, nouvel essai…', null);
+      }
+    }
     fs.rmSync(archive, { force: true });
     fs.rmSync(root, { recursive: true, force: true });
     fs.renameSync(tmpDir, root);
+    fs.writeFileSync(marker, new Date().toISOString());
     exe = findExe(root);
     if (!exe) throw new Error('RetroArch a été téléchargé, mais retroarch.exe est introuvable.');
   }
