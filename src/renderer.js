@@ -245,6 +245,14 @@ window.api.onUpdateAvailable((v) => banner(`Nouvelle version ${v} en télécharg
 window.api.onUpdateProgress((p) => banner(`Téléchargement de la mise à jour… ${p} %`));
 window.api.onUpdateReady((v) => { banner(`La version ${v} est prête.`); $('#btn-update').classList.remove('hidden'); });
 $('#btn-update').onclick = () => window.api.installUpdate();
+$('#btn-check-update').onclick = async (e) => {
+  e.preventDefault();
+  toast('Recherche de mises à jour…');
+  const r = await window.api.checkUpdate();
+  if (r === 'à jour') toast('Tu as déjà la dernière version 👍');
+  else if (r === 'trouvée') toast('Nouvelle version trouvée : téléchargement en cours (bandeau en haut).');
+  else toast('Impossible de vérifier pour l’instant. Réessaie plus tard.');
+};
 
 // ---------- Démarrage ----------
 (async () => {

@@ -182,7 +182,16 @@ function setupUpdater() {
   autoUpdater.on('update-downloaded', (i) => send('update:ready', i.version));
   autoUpdater.on('error', () => { /* pas grave : on réessaiera au prochain lancement */ });
   win.webContents.once('did-finish-load', () => autoUpdater.checkForUpdates().catch(() => {}));
+  // Vérifie aussi toutes les 2 heures si l'app reste ouverte
+  setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 2 * 60 * 60 * 1000);
 }
 ipcMain.handle('update:install', () => { if (autoUpdater) autoUpdater.quitAndInstall(); });
+ipcMain.handle('update:check', async () => {
+  if (!autoUpdater) return 'indisponible';
+  try {
+    const r = await autoUpdater.checkForUpdates();
+    return r && r.updateInfo && r.updateInfo.version !== app.getVersion() ? 'trouvée' : 'à jour';
+  } catch { return 'erreur'; }
+});
 
 app.on('window-all-closed', () => app.quit());
