@@ -18,13 +18,14 @@ const ACTIONS = [
 ];
 const HOTKEYS = [
   ['input_menu_toggle', 'Menu (sauvegardes, manettes…)', 'f1', 'F1'],
-  ['input_exit_emulator', 'Quitter le jeu', 'escape', 'Échap'],
   ['input_save_state', 'Sauvegarde rapide', 'f2', 'F2'],
   ['input_load_state', 'Chargement rapide', 'f4', 'F4'],
   ['input_toggle_fast_forward', 'Avance rapide (activer/couper)', 'space', 'Espace'],
 ];
 // Raccourcis RetroArch sur des lettres qu'on désactive pour éviter les conflits avec tes touches
 const DISABLED_HOTKEYS = [
+  // Échap ne quitte plus le jeu : un double Échap le réduit (géré par Cartouche)
+  'input_exit_emulator',
   'input_pause_toggle', 'input_hold_fast_forward', 'input_rewind', 'input_reset', 'input_frame_advance',
   'input_shader_next', 'input_shader_prev', 'input_hold_slowmotion', 'input_toggle_slowmotion',
   'input_movie_record_toggle', 'input_cheat_toggle', 'input_osk_toggle', 'input_netplay_game_watch',

@@ -28,6 +28,13 @@
       <span id="update-text"></span>
       <button id="btn-update" class="primary hidden">Redémarrer et mettre à jour</button>
     </div>
+    <div id="playing-bar" class="playing-bar hidden">
+      <span>🎮 <b id="playing-title"></b> est en cours</span>
+      <span class="muted small">(Échap deux fois dans le jeu pour le réduire)</span>
+      <span class="spacer"></span>
+      <button id="btn-restore" class="primary">Revenir au jeu</button>
+      <button id="btn-close-game" class="ghost">Fermer le jeu</button>
+    </div>
     <header class="topbar">
       <h1 id="view-title">Tous les jeux</h1>
       <input id="search" type="search" placeholder="Rechercher un jeu…" autocomplete="off" />
@@ -78,7 +85,15 @@
         <label class="toggle"><input type="checkbox" id="opt-fullscreen" /> Lancer les jeux en plein écran</label>
         <label class="toggle"><input type="checkbox" id="opt-saves" /> Sauvegardes en fichiers .sav à côté des jeux</label>
         <p class="muted small">Ex. : <code>Pokemon Emeraude.sav</code> (principale) et <code>Pokemon Emeraude - Nuzlocke.sav</code> à côté de <code>Pokemon Emeraude.gba</code>. Tu choisis la sauvegarde avant chaque partie. Tu peux y déposer des .sav d’autres émulateurs. Avant d’écraser un .sav, l’ancien est gardé en <code>.sav.bak</code>.</p>
-        <p class="muted small">Astuce : dans un jeu, la touche <b>F1</b> ouvre le menu (sauvegardes, manettes) et <b>Échap</b> quitte.</p>
+        <div class="row lang-row">
+          <span>Langue des jeux DS</span>
+          <select id="opt-language" class="select">
+            <option value="fr">Français</option><option value="en">English</option><option value="es">Español</option>
+            <option value="it">Italiano</option><option value="de">Deutsch</option><option value="ja">日本語</option>
+          </select>
+        </div>
+        <p class="muted small">Les jeux DS européens (ex. Pokémon SoulSilver) démarrent dans cette langue. Le menu en jeu (F1) l’utilise aussi. Les jeux Game Boy / GBA multilingues proposent leur langue au démarrage du jeu.</p>
+        <p class="muted small">Astuce : dans un jeu, <b>F1</b> ouvre le menu, <b>Échap deux fois</b> réduit le jeu (il se met en pause). Pour fermer : la croix de la fenêtre, ou « Fermer le jeu » dans Cartouche. Décoche le plein écran pour avoir la croix.</p>
       </div>
 
       <div class="step">

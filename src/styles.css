@@ -169,3 +169,11 @@ button:disabled { opacity: .5; cursor: default; }
 .keycap { min-width: 96px; background: var(--bg) !important; color: var(--text) !important; border: 1px solid var(--line) !important; border-bottom-width: 3px !important; border-radius: 8px; padding: 5px 10px !important; font-weight: 600; font-family: Consolas, monospace; }
 .keycap:hover { border-color: var(--accent) !important; }
 .keycap.listening { border-color: var(--accent) !important; color: var(--accent) !important; font-family: inherit; font-weight: 500; }
+
+/* Jeu en cours */
+.playing-bar { display: flex; align-items: center; gap: 12px; padding: 10px 28px; background: #1b1a33; border-bottom: 1px solid #3a3570; }
+.playing-bar .spacer { flex: 1; }
+.playing-bar .primary { padding: 7px 14px; }
+/* Langue */
+.lang-row { margin: 8px 0 2px; gap: 12px; }
+.select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: inherit; }

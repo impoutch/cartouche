@@ -9,6 +9,7 @@ const { installAll } = require('./installer');
 const { listSaves, prepareSession, finishSession } = require('./saves');
 const { identify, inspectArchive } = require('./identify');
 const controls = require('./controls');
+const gameWindow = require('./window');
 const ARCHIVES = ['.zip', '.7z'];
 
 // ---------- Consoles prises en charge ----------
@@ -36,7 +37,7 @@ function defaultRetroArchCandidates() {
 
 // ---------- Réglages (sauvegardés dans un fichier JSON) ----------
 const configPath = () => path.join(app.getPath('userData'), 'config.json');
-const DEFAULT_CONFIG = { retroarch: '', gamesDirs: [], fullscreen: true, externalSaves: true, volume: 100, mute: false, lowLatency: false, menuSounds: false, bindings: {}, favorites: [], recent: {}, lastSave: {}, pendingSession: null };
+const DEFAULT_CONFIG = { retroarch: '', gamesDirs: [], fullscreen: true, externalSaves: true, volume: 100, mute: false, lowLatency: false, menuSounds: false, bindings: {}, language: 'fr', favorites: [], recent: {}, lastSave: {}, pendingSession: null };
 
 function loadConfig() {
   let cfg = { ...DEFAULT_CONFIG };
@@ -108,9 +109,32 @@ function writeControlsConfig() {
   return file;
 }
 
+// ---------- Langue ----------
+// Langue de la console DS émulée (et du menu en jeu). Le moteur melonDS DS suit la langue de
+// RetroArch ; on la règle aussi directement dans les options du moteur.
+const LANGUAGES = { en: 0, ja: 1, fr: 2, es: 3, de: 4, it: 5 }; // codes de langue libretro
+function writeLanguageConfig() {
+  const lang = LANGUAGES[config.language] !== undefined ? config.language : 'fr';
+  try {
+    const optDir = path.join(path.dirname(config.retroarch), 'config', 'melonDS DS');
+    const opt = path.join(optDir, 'melonDS DS.opt');
+    fs.mkdirSync(optDir, { recursive: true });
+    let text = fs.existsSync(opt) ? fs.readFileSync(opt, 'utf8') : '';
+    const line = `melonds_firmware_language = "${lang}"`;
+    text = /^melonds_firmware_language\s*=.*$/m.test(text)
+      ? text.replace(/^melonds_firmware_language\s*=.*$/m, line)
+      : text + (text && !text.endsWith('\n') ? '\n' : '') + line + '\n';
+    fs.writeFileSync(opt, text);
+  } catch { /* le réglage de RetroArch ci-dessous suffit en général */ }
+  const file = path.join(app.getPath('userData'), 'cartouche-langue.cfg');
+  fs.writeFileSync(file, `user_language = "${LANGUAGES[lang]}"\n`);
+  return file;
+}
+
 // ---------- Fenêtre ----------
 let win;
 let running = null;
+let runningTitle = null;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -177,7 +201,7 @@ app.whenReady().then(() => {
     return status;
   });
 
-  ipcMain.handle('game:launch', async (_e, gamePath, system, choice) => {
+  ipcMain.handle('game:launch', async (_e, gamePath, system, choice, title) => {
     if (running) return { ok: false, error: 'Un jeu est déjà ouvert. Ferme-le d’abord.' };
     if (!config.retroarch || !fs.existsSync(config.retroarch)) return { ok: false, error: 'RetroArch introuvable. Vérifie les réglages.' };
     const core = findCore(system);
@@ -187,6 +211,7 @@ app.whenReady().then(() => {
     const extraConfigs = [];
     try { extraConfigs.push(writeAudioConfig()); } catch { /* son par défaut */ }
     try { extraConfigs.push(writeControlsConfig()); } catch { /* touches par défaut */ }
+    try { extraConfigs.push(writeLanguageConfig()); } catch { /* langue par défaut */ }
     // Sauvegardes externes : la sauvegarde choisie est copiée dans un dossier de travail
     let session = null;
     if (config.externalSaves && choice) {
@@ -213,7 +238,11 @@ app.whenReady().then(() => {
     }
     config.recent[gamePath] = Date.now();
     saveConfig(config);
+    const stopWatch = gameWindow.watchEscape(running.pid);
+    runningTitle = title || path.basename(gamePath);
+    if (win && !win.isDestroyed()) win.webContents.send('game:started', runningTitle);
     running.on('exit', () => {
+      stopWatch();
       running = null;
       const saved = session ? finishSession(session) : null;
       if (saved && saved.file) config.lastSave[gamePath] = saved.file;
@@ -256,6 +285,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('app:version', () => app.getVersion());
+  ipcMain.handle('game:restore', () => (running ? gameWindow.restore(running.pid) : false));
+  ipcMain.handle('game:close', () => (running ? gameWindow.close(running.pid) : false));
+  ipcMain.handle('game:current', () => (running ? runningTitle : null));
   ipcMain.handle('controls:list', () => ({
     actions: controls.ACTIONS.map(([key, label]) => ({ key, label })),
     hotkeys: controls.HOTKEYS.map(([key, label]) => ({ key, label })),

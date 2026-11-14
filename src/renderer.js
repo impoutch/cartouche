@@ -142,7 +142,7 @@ async function launch(g) {
 }
 
 async function startGame(g, choice) {
-  const r = await window.api.launch(g.path, g.system, choice);
+  const r = await window.api.launch(g.path, g.system, choice, titleOf(g));
   if (!r.ok) { toast(r.error, 5000); return; }
   toast(`Lancement de ${titleOf(g)}…`);
   config = await window.api.getConfig();
@@ -207,6 +207,7 @@ async function renderSettings() {
   $('#ra-path').textContent = config.retroarch || 'Non défini';
   $('#opt-fullscreen').checked = !!config.fullscreen;
   $('#opt-saves').checked = config.externalSaves !== false;
+  $('#opt-language').value = config.language || 'fr';
   $('#opt-volume').value = config.volume ?? 100;
   $('#volume-value').textContent = (config.volume ?? 100) + ' %';
   $('#opt-mute').checked = !!config.mute;
@@ -306,6 +307,7 @@ $('#btn-add-dir').onclick = async () => {
 };
 $('#opt-fullscreen').onchange = (e) => window.api.setConfig({ fullscreen: e.target.checked });
 $('#opt-saves').onchange = (e) => window.api.setConfig({ externalSaves: e.target.checked });
+$('#opt-language').onchange = async (e) => { config = await window.api.setConfig({ language: e.target.value }); };
 $('#opt-volume').oninput = (e) => { $('#volume-value').textContent = e.target.value + ' %'; };
 $('#opt-volume').onchange = async (e) => { config = await window.api.setConfig({ volume: Number(e.target.value) }); };
 $('#opt-mute').onchange = async (e) => { config = await window.api.setConfig({ mute: e.target.checked }); };
@@ -317,7 +319,15 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('#picker').classList.contains('hidden')) closePicker();
   if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); $('#search').focus(); }
 });
+// Barre « jeu en cours »
+const showPlaying = (t) => { $('#playing-title').textContent = t; $('#playing-bar').classList.remove('hidden'); };
+window.api.onStarted(showPlaying);
+window.api.currentGame().then((t) => { if (t) showPlaying(t); });
+$('#btn-restore').onclick = () => window.api.restoreGame();
+$('#btn-close-game').onclick = () => window.api.closeGame();
+
 window.api.onExited(async (saved) => {
+  $('#playing-bar').classList.add('hidden');
   config = await window.api.getConfig();
   if (saved && saved.status === 'enregistree') toast('Sauvegarde enregistrée 💾 ' + saved.file.split(/[\\/]/).pop());
   else if (saved && saved.status === 'erreur') toast('Attention, la sauvegarde n’a pas pu être écrite : ' + saved.error, 8000);
