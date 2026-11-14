@@ -91,6 +91,13 @@ function card(g) {
   badge.className = 'badge';
   badge.textContent = LABELS[g.system];
   meta.append(h, badge);
+  if (g.hasSave) {
+    const sv = document.createElement('span');
+    sv.className = 'badge save';
+    sv.textContent = '💾 .sav';
+    sv.title = 'Sauvegarde trouvée à côté du jeu';
+    meta.append(sv);
+  }
 
   el.append(cover, meta);
   const go = () => launch(g);
@@ -141,6 +148,7 @@ async function renderSettings() {
   config = await window.api.getConfig();
   $('#ra-path').textContent = config.retroarch || 'Non défini';
   $('#opt-fullscreen').checked = !!config.fullscreen;
+  $('#opt-saves').checked = config.externalSaves !== false;
 
   const st = await window.api.coresStatus();
   const cores = $('#cores');
@@ -233,11 +241,17 @@ $('#btn-add-dir').onclick = async () => {
   if (d && !config.gamesDirs.includes(d)) { await window.api.setConfig({ gamesDirs: [...config.gamesDirs, d] }); renderSettings(); }
 };
 $('#opt-fullscreen').onchange = (e) => window.api.setConfig({ fullscreen: e.target.checked });
+$('#opt-saves').onchange = (e) => window.api.setConfig({ externalSaves: e.target.checked });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('#settings').classList.contains('hidden')) closeSettings();
   if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); $('#search').focus(); }
 });
-window.api.onExited(async () => { config = await window.api.getConfig(); render(); });
+window.api.onExited(async (saved) => {
+  config = await window.api.getConfig();
+  if (saved === 'srm→sav') toast('Sauvegarde enregistrée dans le fichier .sav 💾');
+  else if (saved && saved.startsWith('erreur')) toast('Attention, sauvegarde .sav non mise à jour : ' + saved, 7000);
+  rescan();
+});
 window.api.onError((msg) => toast('Erreur au lancement : ' + msg, 6000));
 
 // ---------- Mises à jour ----------

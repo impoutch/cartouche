@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('api', {
   launch: (p, system) => ipcRenderer.invoke('game:launch', p, system),
   openRetroArch: () => ipcRenderer.invoke('retroarch:open'),
   openUrl: (url) => ipcRenderer.invoke('shell:open', url),
-  onExited: (cb) => ipcRenderer.on('game:exited', () => cb()),
+  onExited: (cb) => ipcRenderer.on('game:exited', (_e, saved) => cb(saved)),
   onError: (cb) => ipcRenderer.on('game:error', (_e, msg) => cb(msg)),
   installAll: () => ipcRenderer.invoke('setup:install'),
   onSetupProgress: (cb) => ipcRenderer.on('setup:progress', (_e, p) => cb(p)),

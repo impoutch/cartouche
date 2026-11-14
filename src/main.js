@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const { installAll } = require('./installer');
+const { syncSaves, writeLaunchConfig, savPath } = require('./saves');
 
 // ---------- Consoles prises en charge ----------
 const GB_CORES = ['sameboy_libretro.dll', 'gambatte_libretro.dll', 'mgba_libretro.dll'];
@@ -32,7 +33,7 @@ function defaultRetroArchCandidates() {
 
 // ---------- Réglages (sauvegardés dans un fichier JSON) ----------
 const configPath = () => path.join(app.getPath('userData'), 'config.json');
-const DEFAULT_CONFIG = { retroarch: '', gamesDirs: [], fullscreen: true, favorites: [], recent: {} };
+const DEFAULT_CONFIG = { retroarch: '', gamesDirs: [], fullscreen: true, externalSaves: true, favorites: [], recent: {} };
 
 function loadConfig() {
   let cfg = { ...DEFAULT_CONFIG };
@@ -63,7 +64,7 @@ function scanDir(dir, depth, out) {
     const system = systemForFile(e.name);
     if (system) {
       const raw = e.name.slice(0, -path.extname(e.name).length);
-      out.push({ path: full, raw, system, thumbs: SYSTEMS[system].thumbs });
+      out.push({ path: full, raw, system, thumbs: SYSTEMS[system].thumbs, hasSave: fs.existsSync(savPath(full)) });
     }
   }
 }
@@ -126,6 +127,11 @@ app.whenReady().then(() => {
     if (!core) return { ok: false, error: `Aucun moteur installé pour ${SYSTEMS[system].label}. Va dans Réglages pour voir comment l’installer.` };
     const args = ['-L', path.join(coresDir(), core), gamePath];
     if (config.fullscreen) args.push('-f');
+    // Sauvegardes externes : .sav à côté du jeu, synchronisé avec le .srm de RetroArch
+    if (config.externalSaves) {
+      syncSaves(gamePath);
+      try { args.push('--appendconfig', writeLaunchConfig(gamePath, app.getPath('userData'))); } catch { /* on lance quand même */ }
+    }
     try {
       running = spawn(config.retroarch, args, { cwd: path.dirname(config.retroarch), detached: false });
     } catch (err) {
@@ -133,7 +139,11 @@ app.whenReady().then(() => {
     }
     config.recent[gamePath] = Date.now();
     saveConfig(config);
-    running.on('exit', () => { running = null; if (win && !win.isDestroyed()) { win.webContents.send('game:exited'); win.show(); } });
+    running.on('exit', () => {
+      running = null;
+      const saved = config.externalSaves ? syncSaves(gamePath) : null;
+      if (win && !win.isDestroyed()) { win.webContents.send('game:exited', saved); win.show(); }
+    });
     running.on('error', (err) => { running = null; if (win && !win.isDestroyed()) win.webContents.send('game:error', String(err.message || err)); });
     return { ok: true, core };
   });

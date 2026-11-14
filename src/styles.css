@@ -140,3 +140,6 @@ button:disabled { opacity: .5; cursor: default; }
 
 .panel a { color: var(--accent); text-decoration: none; }
 .panel a:hover { text-decoration: underline; }
+
+.badge.save { margin-left: 6px; color: #d9dcea; }
+.step code { font-size: 12px; }
