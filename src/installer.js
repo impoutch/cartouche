@@ -10,7 +10,8 @@ const AdmZip = require('adm-zip');
 
 const BUILDBOT = 'https://buildbot.libretro.com';
 const CORES_URL = `${BUILDBOT}/nightly/windows/x86_64/latest`;
-const WANTED_CORES = ['sameboy_libretro.dll', 'mgba_libretro.dll', 'melondsds_libretro.dll'];
+const WANTED_CORES = ['sameboy_libretro.dll', 'mgba_libretro.dll', 'melondsds_libretro.dll',
+  'pcsx_rearmed_libretro.dll', 'swanstation_libretro.dll', 'pcsx2_libretro.dll'];
 
 const installRoot = () => path.join(app.getPath('userData'), 'retroarch');
 // 7-Zip : on utilise la version officielle la plus récente (7zr.exe, 7-zip.org), car l'archive
@@ -130,7 +131,8 @@ async function installCores(retroarchExe, progress) {
     const core = WANTED_CORES[i];
     if (fs.existsSync(path.join(coresDir, core))) continue;
     const zipPath = path.join(tmp, `${core}.zip`);
-    const label = { sameboy: 'moteur Game Boy (SameBoy)', mgba: 'moteur Game Boy Advance (mGBA)', melondsds: 'moteur DS (melonDS DS)' }[core.split('_')[0]];
+    const label = { sameboy: 'moteur Game Boy (SameBoy)', mgba: 'moteur Game Boy Advance (mGBA)', melondsds: 'moteur DS (melonDS DS)',
+      pcsx: 'moteur PlayStation (PCSX ReARMed)', swanstation: 'moteur PlayStation (SwanStation)', pcsx2: 'moteur PlayStation 2 (LRPS2)' }[core.split('_')[0]];
     await download(`${CORES_URL}/${core}.zip`, zipPath, (d, t) =>
       progress(`Téléchargement du ${label}…`, t ? (i + d / t) / WANTED_CORES.length : null));
     new AdmZip(zipPath).extractAllTo(coresDir, true);
@@ -185,4 +187,4 @@ async function installAll(currentExe, progress) {
   return exe;
 }
 
-module.exports = { installAll, installCores };
+module.exports = { installAll, installCores, download, sevenZip, extract7z, findExe };

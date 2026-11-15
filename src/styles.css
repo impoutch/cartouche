@@ -10,6 +10,9 @@
   --gbc: #e0457b;
   --gba: #a66cff;
   --nds: #3ea6ff;
+  --gc: #8f7cff;
+  --ps1: #b8bcc8;
+  --ps2: #4f7bff;
   --radius: 14px;
 }
 * { box-sizing: border-box; }
@@ -188,3 +191,14 @@ button:disabled { opacity: .5; cursor: default; }
 .flag b { font-size: 9px; line-height: 14px; margin: auto; color: var(--muted); }
 .flag.mine { opacity: 1; box-shadow: 0 0 0 2px var(--accent); }
 .langs { gap: 6px; }
+
+/* Consoles sur disque */
+.dot.gc { background: var(--gc); } .dot.ps1 { background: var(--ps1); } .dot.ps2 { background: var(--ps2); }
+.sys-gc .badge { color: var(--gc); } .sys-ps1 .badge { color: var(--ps1); } .sys-ps2 .badge { color: var(--ps2); }
+.sys-gc .cover:not(.has-img) { background: linear-gradient(145deg, #2a2357, #0e0b1f); }
+.sys-ps1 .cover:not(.has-img) { background: linear-gradient(145deg, #3a3d47, #121318); }
+.sys-ps2 .cover:not(.has-img) { background: linear-gradient(145deg, #13245a, #070b1c); }
+.bios-row { margin-top: 10px; }
+
+/* Les cartes gardent leur hauteur complète, même avec beaucoup de jeux */
+.grid { grid-auto-rows: max-content; }

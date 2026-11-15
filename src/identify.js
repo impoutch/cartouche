@@ -11,11 +11,13 @@ const https = require('https');
 const zlib = require('zlib');
 const { execFile } = require('child_process');
 
-const DB_URL = 'https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/no-intro/';
+const DB_URL = 'https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/';
 const DB_FILES = {
-  gb: 'Nintendo - Game Boy', gbc: 'Nintendo - Game Boy Color',
-  gba: 'Nintendo - Game Boy Advance', nds: 'Nintendo - Nintendo DS',
+  gb: 'no-intro/Nintendo - Game Boy', gbc: 'no-intro/Nintendo - Game Boy Color',
+  gba: 'no-intro/Nintendo - Game Boy Advance', nds: 'no-intro/Nintendo - Nintendo DS',
+  ps1: 'redump/Sony - PlayStation', ps2: 'redump/Sony - PlayStation 2', gc: 'redump/Nintendo - GameCube',
 };
+const DISC_SYSTEMS = ['ps1', 'ps2', 'gc'];
 const MAX_AGE = 30 * 24 * 3600 * 1000; // on rafraîchit la base une fois par mois
 
 const dbDir = () => path.join(app.getPath('userData'), 'base-jeux');
@@ -38,12 +40,12 @@ function fetchText(url, redirects = 0) {
 const dbs = {};
 async function loadDb(system) {
   if (dbs[system]) return dbs[system];
-  const file = path.join(dbDir(), DB_FILES[system] + '.dat');
+  const file = path.join(dbDir(), path.basename(DB_FILES[system]) + '.dat');
   let text = null;
   const fresh = fs.existsSync(file) && Date.now() - fs.statSync(file).mtimeMs < MAX_AGE;
   if (!fresh) {
     try {
-      text = await fetchText(DB_URL + encodeURIComponent(DB_FILES[system]) + '.dat');
+      text = await fetchText(DB_URL + DB_FILES[system].split('/').map(encodeURIComponent).join('/') + '.dat');
       fs.mkdirSync(dbDir(), { recursive: true });
       fs.writeFileSync(file, text);
     } catch { /* hors ligne : on garde l'ancienne base si elle existe */ }
@@ -58,6 +60,14 @@ async function loadDb(system) {
       const serial = /\n\tserial "([^"]+)"/.exec(block);
       if (crc) db.byCrc.set(crc[1].toUpperCase(), name[1]);
       if (crc && serial) db.crcSerial.set(crc[1].toUpperCase(), serial[1]);
+      // Jeux sur disque : un même jeu peut avoir plusieurs codes (« SLUS-00892, SLUS-00894 »)
+      if (serial && DISC_SYSTEMS.includes(system)) {
+        for (const one of serial[1].split(/[,\s]+/).filter(Boolean)) {
+          const gc = /DOL-([A-Z0-9]{4})/.exec(one);          // GameCube : « DL-DOL-GZLP-EUR » → GZLP
+          const key = gc ? gc[1] : one.toUpperCase();
+          if (!db.bySerial.has(key)) db.bySerial.set(key, name[1]);
+        }
+      }
       if (serial && !db.bySerial.has(serial[1])) db.bySerial.set(serial[1], name[1]);
       // Même jeu dans d'autres régions : les 3 premiers caractères du code sont communs (BPE* = Émeraude)
       if (serial && serial[1].length === 4) {
@@ -100,7 +110,10 @@ async function identify(game) {
   try {
     const db = await loadDb(game.system);
     let serial = null;
-    if (game.crc) {
+    if (DISC_SYSTEMS.includes(game.system)) {
+      // Disque : le code a déjà été lu sur le disque (pas d'empreinte, trop gros)
+      if (game.serial) result.name = db.bySerial.get(game.system === 'gc' ? game.serial.slice(0, 4) : game.serial) || null;
+    } else if (game.crc) {
       // Jeu dans une archive : l'empreinte est déjà connue (lue dans l'archive)
       result.name = db.byCrc.get(game.crc) || null;
       serial = db.crcSerial.get(game.crc) || null;
@@ -110,7 +123,7 @@ async function identify(game) {
       if (serial) result.name = db.bySerial.get(serial) || null;
       if (!result.name && st.size <= 64 * 1024 * 1024) result.name = db.byCrc.get(await crc32File(game.path)) || null;
     }
-    if (serial && /^[A-Z0-9]{4}$/.test(serial)) {
+    if (serial && /^[A-Z0-9]{4}$/.test(serial) && !DISC_SYSTEMS.includes(game.system)) {
       const rank = (n) => (/\((USA|World)/.test(n) ? 0 : /Europe/.test(n) ? 1 : 2); // versions les plus illustrées d'abord
       result.alts = (db.byPrefix.get(serial.slice(0, 3)) || []).filter((n) => n !== result.name)
         .sort((a, b) => rank(a) - rank(b)).slice(0, 4);

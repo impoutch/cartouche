@@ -10,6 +10,8 @@ const { listSaves, prepareSession, finishSession } = require('./saves');
 const { identify, inspectArchive } = require('./identify');
 const controls = require('./controls');
 const gameWindow = require('./window');
+const { DISC_EXT, detectFile } = require('./disc');
+const dolphin = require('./dolphin');
 const ARCHIVES = ['.zip', '.7z'];
 
 // ---------- Consoles prises en charge ----------
@@ -21,6 +23,11 @@ const SYSTEMS = {
          cores: ['mgba_libretro.dll', 'vbam_libretro.dll', 'vba_next_libretro.dll'] },
   nds: { label: 'Nintendo DS',    ext: ['.nds', '.dsi'], thumbs: 'Nintendo - Nintendo DS',
          cores: ['melondsds_libretro.dll', 'melonds_libretro.dll', 'desmume_libretro.dll'] },
+  // Consoles sur disque : la console est reconnue en lisant le disque (voir disc.js)
+  ps1: { label: 'PlayStation',    ext: [], disc: true, thumbs: 'Sony - PlayStation',
+         cores: ['swanstation_libretro.dll', 'pcsx_rearmed_libretro.dll', 'mednafen_psx_hw_libretro.dll'] },
+  ps2: { label: 'PlayStation 2',  ext: [], disc: true, thumbs: 'Sony - PlayStation 2', cores: ['pcsx2_libretro.dll'] },
+  gc:  { label: 'GameCube',       ext: [], disc: true, thumbs: 'Nintendo - GameCube', cores: [] }, // via Dolphin
 };
 
 // Emplacements habituels de RetroArch sous Windows (détection automatique)
@@ -70,6 +77,10 @@ function scanDir(dir, depth, out) {
       out.push({ path: full, raw: e.name.slice(0, -path.extname(e.name).length), system: null, archive: true });
       continue;
     }
+    if (DISC_EXT.includes(path.extname(e.name).toLowerCase())) {
+      out.push({ path: full, raw: e.name.slice(0, -path.extname(e.name).length), system: null, disc: true });
+      continue;
+    }
     const system = systemForFile(e.name);
     if (system) {
       const raw = e.name.slice(0, -path.extname(e.name).length);
@@ -78,12 +89,38 @@ function scanDir(dir, depth, out) {
   }
 }
 
+// Reconnaissance d'un disque, avec mémoire (pour ne pas relire les disques à chaque scan)
+let discCache = null;
+const discCachePath = () => path.join(app.getPath('userData'), 'disques.json');
+function detectDisc(file) {
+  if (!discCache) { try { discCache = JSON.parse(fs.readFileSync(discCachePath(), 'utf8')); } catch { discCache = {}; } }
+  const st = fs.statSync(file);
+  const c = discCache[file];
+  if (c && c.size === st.size && c.mtime === st.mtimeMs) return c.info;
+  let info = null;
+  try { info = detectFile(file); } catch { info = null; }
+  discCache[file] = { size: st.size, mtime: st.mtimeMs, info };
+  try { fs.writeFileSync(discCachePath(), JSON.stringify(discCache)); } catch { /* pas grave */ }
+  return info;
+}
+
 // ---------- Cœurs (moteurs) ----------
 function coresDir() { return config.retroarch ? path.join(path.dirname(config.retroarch), 'cores') : ''; }
+function systemDir() { return config.retroarch ? path.join(path.dirname(config.retroarch), 'system') : ''; }
+const PS1_BIOS = ['scph5500.bin', 'scph5501.bin', 'scph5502.bin', 'scph1001.bin', 'scph7001.bin', 'scph7003.bin', 'scph101.bin', 'psxonpsp660.bin'];
+const ps1BiosFound = () => !!systemDir() && PS1_BIOS.some((b) => fs.existsSync(path.join(systemDir(), b)));
+const ps2BiosDir = () => path.join(systemDir(), 'pcsx2', 'bios');
+function ps2BiosFound() {
+  try { return fs.readdirSync(ps2BiosDir()).some((n) => fs.statSync(path.join(ps2BiosDir(), n)).size >= 4 * 1024 * 1024); } catch { return false; }
+}
 function findCore(system) {
+  if (system === 'gc') return dolphin.findExe() ? 'Dolphin' : null;
   const dir = coresDir();
   if (!dir) return null;
-  return SYSTEMS[system].cores.find(c => fs.existsSync(path.join(dir, c))) || null;
+  let cores = SYSTEMS[system].cores;
+  // PS1 : SwanStation est le meilleur moteur mais exige un BIOS ; sans BIOS, PCSX ReARMed fonctionne
+  if (system === 'ps1' && !ps1BiosFound()) cores = ['pcsx_rearmed_libretro.dll', ...cores];
+  return cores.find(c => fs.existsSync(path.join(dir, c))) || null;
 }
 
 // ---------- Son ----------
@@ -109,6 +146,14 @@ function writeControlsConfig() {
   return file;
 }
 
+// ---------- Vidéo ----------
+// La PS2 (LRPS2) a besoin de Vulkan ; les autres moteurs utilisent OpenGL, le réglage habituel.
+function writeVideoConfig(system) {
+  const file = path.join(app.getPath('userData'), 'cartouche-video.cfg');
+  fs.writeFileSync(file, `video_driver = "${system === 'ps2' ? 'vulkan' : 'gl'}"\n`);
+  return file;
+}
+
 // ---------- Langue ----------
 // Langue de la console DS émulée (et du menu en jeu). Le moteur melonDS DS suit la langue de
 // RetroArch ; on la règle aussi directement dans les options du moteur.
@@ -129,6 +174,29 @@ function writeLanguageConfig() {
   const file = path.join(app.getPath('userData'), 'cartouche-langue.cfg');
   fs.writeFileSync(file, `user_language = "${LANGUAGES[lang]}"\n`);
   return file;
+}
+
+// ---------- GameCube : Dolphin ----------
+function launchDolphin(gamePath, title) {
+  const exe = dolphin.findExe();
+  if (!exe) return { ok: false, error: 'Dolphin n’est pas installé. Va dans Réglages pour l’installer.' };
+  try {
+    running = dolphin.launch(exe, gamePath, {
+      fullscreen: config.fullscreen, volume: config.mute ? 0 : Number(config.volume ?? 100), language: config.language,
+    });
+  } catch (err) { return { ok: false, error: String(err.message || err) }; }
+  config.recent[gamePath] = Date.now();
+  saveConfig(config);
+  const stopWatch = gameWindow.watchEscape(running.pid);
+  runningTitle = title || path.basename(gamePath);
+  if (win && !win.isDestroyed()) win.webContents.send('game:started', runningTitle);
+  running.on('exit', () => {
+    stopWatch();
+    running = null;
+    if (win && !win.isDestroyed()) { win.webContents.send('game:exited', null); win.show(); }
+  });
+  running.on('error', (err) => { running = null; if (win && !win.isDestroyed()) win.webContents.send('game:error', String(err.message || err)); });
+  return { ok: true, core: 'Dolphin' };
 }
 
 // ---------- Fenêtre ----------
@@ -173,7 +241,17 @@ app.whenReady().then(() => {
     const out = [];
     for (const d of config.gamesDirs) scanDir(d, 0, out);
     const games = [];
+    // Fichiers déjà listés par une playlist .m3u (disques 1, 2…) : on n'affiche que la playlist
+    const refs = new Set();
     for (const g of out) {
+      if (!g.disc) continue;
+      const info = detectDisc(g.path);
+      if (!info || !SYSTEMS[info.system]) { g.skip = true; continue; }
+      Object.assign(g, { system: info.system, thumbs: SYSTEMS[info.system].thumbs, serial: info.serial });
+      for (const r of info.refs || []) refs.add(path.resolve(r));
+    }
+    for (const g of out) {
+      if (g.skip || (g.disc && refs.has(path.resolve(g.path)))) continue;
       if (g.archive) {
         const info = await inspectArchive(g.path, systemForFile);
         if (!info) continue;                 // archive sans jeu Game Boy / GBA / DS
@@ -197,21 +275,49 @@ app.whenReady().then(() => {
 
   ipcMain.handle('cores:status', () => {
     const status = { retroarchOk: !!config.retroarch && fs.existsSync(config.retroarch) };
-    for (const k of Object.keys(SYSTEMS)) status[k] = status.retroarchOk ? findCore(k) : null;
+    for (const k of Object.keys(SYSTEMS)) status[k] = k === 'gc' || status.retroarchOk ? findCore(k) : null;
+    status.ps1Bios = status.retroarchOk && ps1BiosFound();
+    status.ps2Bios = status.retroarchOk && ps2BiosFound();
     return status;
   });
+
+  // Import des BIOS : 512 Ko = PlayStation (dossier system), 4 Mo et plus = PS2 (system/pcsx2/bios)
+  ipcMain.handle('bios:import', async () => {
+    if (!config.retroarch) return { ok: false, error: 'Installe d’abord les moteurs (bouton violet).' };
+    const r = await dialog.showOpenDialog(win, { title: 'Choisis tes fichiers BIOS (PS1 et/ou PS2)', properties: ['openFile', 'multiSelections'] });
+    if (r.canceled) return { ok: false };
+    let ps1 = 0, ps2 = 0, ignored = 0;
+    for (const f of r.filePaths) {
+      const size = fs.statSync(f).size;
+      if (size === 512 * 1024) {
+        fs.mkdirSync(systemDir(), { recursive: true });
+        // SwanStation reconnaît les BIOS par leur nom standard : on garde le nom d'origine
+        fs.copyFileSync(f, path.join(systemDir(), path.basename(f).toLowerCase()));
+        ps1++;
+      } else if (size >= 4 * 1024 * 1024 && size <= 16 * 1024 * 1024) {
+        fs.mkdirSync(ps2BiosDir(), { recursive: true });
+        fs.copyFileSync(f, path.join(ps2BiosDir(), path.basename(f)));
+        ps2++;
+      } else ignored++;
+    }
+    return { ok: true, ps1, ps2, ignored };
+  });
+  ipcMain.handle('dolphin:open', () => dolphin.openSettings());
 
   ipcMain.handle('game:launch', async (_e, gamePath, system, choice, title) => {
     if (running) return { ok: false, error: 'Un jeu est déjà ouvert. Ferme-le d’abord.' };
     if (!config.retroarch || !fs.existsSync(config.retroarch)) return { ok: false, error: 'RetroArch introuvable. Vérifie les réglages.' };
     const core = findCore(system);
-    if (!core) return { ok: false, error: `Aucun moteur installé pour ${SYSTEMS[system].label}. Va dans Réglages pour voir comment l’installer.` };
+    if (!core) return { ok: false, error: `Aucun moteur installé pour ${SYSTEMS[system].label}. Va dans Réglages pour l’installer.` };
+    if (system === 'ps2' && !ps2BiosFound()) return { ok: false, error: 'Il manque le BIOS de ta PS2. Va dans Réglages → « Importer des fichiers BIOS ».' };
+    if (system === 'gc') return launchDolphin(gamePath, title);
     const args = ['-L', path.join(coresDir(), core), gamePath];
     if (config.fullscreen) args.push('-f');
     const extraConfigs = [];
     try { extraConfigs.push(writeAudioConfig()); } catch { /* son par défaut */ }
     try { extraConfigs.push(writeControlsConfig()); } catch { /* touches par défaut */ }
     try { extraConfigs.push(writeLanguageConfig()); } catch { /* langue par défaut */ }
+    try { extraConfigs.push(writeVideoConfig(system)); } catch { /* pilote par défaut */ }
     // Sauvegardes externes : la sauvegarde choisie est copiée dans un dossier de travail
     let session = null;
     if (config.externalSaves && choice) {
@@ -274,6 +380,7 @@ app.whenReady().then(() => {
     try {
       const send = (label, frac) => win && !win.isDestroyed() && win.webContents.send('setup:progress', { label, frac });
       const exe = await installAll(config.retroarch, send);
+      if (!dolphin.findExe()) await dolphin.install(send);
       config.retroarch = exe;
       saveConfig(config);
       return { ok: true };

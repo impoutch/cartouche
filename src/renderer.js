@@ -1,7 +1,7 @@
 // Cartouche — interface
 const $ = (s) => document.querySelector(s);
-const LABELS = { gb: 'Game Boy', gbc: 'Game Boy Color', gba: 'Game Boy Advance', nds: 'Nintendo DS' };
-const TITLES = { all: 'Tous les jeux', fav: 'Favoris', recent: 'Récents', gb: 'Game Boy', gbc: 'Game Boy Color', gba: 'Game Boy Advance', nds: 'Nintendo DS' };
+const LABELS = { gb: 'Game Boy', gbc: 'Game Boy Color', gba: 'Game Boy Advance', nds: 'Nintendo DS', gc: 'GameCube', ps1: 'PlayStation', ps2: 'PlayStation 2' };
+const TITLES = { all: 'Tous les jeux', fav: 'Favoris', recent: 'Récents', gb: 'Game Boy', gbc: 'Game Boy Color', gba: 'Game Boy Advance', nds: 'Nintendo DS', gc: 'GameCube', ps1: 'PlayStation', ps2: 'PlayStation 2' };
 
 let config = null;
 let games = [];
@@ -98,7 +98,7 @@ function updateCounts() {
   set('#c-all', games.length);
   set('#c-fav', games.filter((g) => config.favorites.includes(g.path)).length);
   set('#c-recent', games.filter((g) => config.recent[g.path]).length);
-  for (const k of ['gb', 'gbc', 'gba', 'nds']) set('#c-' + k, games.filter((g) => g.system === k).length);
+  for (const k of ['gb', 'gbc', 'gba', 'nds', 'gc', 'ps1', 'ps2']) set('#c-' + k, games.filter((g) => g.system === k).length);
 }
 
 function card(g) {
@@ -203,7 +203,8 @@ function render() {
 }
 
 async function launch(g) {
-  if (config.externalSaves === false) return startGame(g, null);
+  // PS2 et GameCube : sauvegardes sur cartes mémoire partagées, gérées par l'émulateur
+  if (config.externalSaves === false || g.system === 'ps2' || g.system === 'gc') return startGame(g, null);
   openPicker(g);
 }
 
@@ -293,10 +294,14 @@ async function renderSettings() {
   line(!!st.gb, 'Game Boy / Color : ' + (st.gb || 'moteur manquant'));
   line(!!st.gba, 'Game Boy Advance : ' + (st.gba || 'moteur manquant'));
   line(!!st.nds, 'Nintendo DS : ' + (st.nds || 'moteur manquant'));
+  line(!!st.gc, 'GameCube : ' + (st.gc ? 'Dolphin installé' : 'Dolphin manquant'));
+  line(!!st.ps1, 'PlayStation : ' + (st.ps1 || 'moteur manquant') + (st.ps1 ? (st.ps1Bios ? ' (avec BIOS)' : ' (sans BIOS, facultatif)') : ''));
+  line(!!st.ps2 && st.ps2Bios, 'PlayStation 2 : ' + (st.ps2 || 'moteur manquant') + (st.ps2 && !st.ps2Bios ? ' — BIOS PS2 manquant' : ''));
+  $('#btn-dolphin').classList.toggle('hidden', !st.gc);
   $('#btn-open-ra').classList.toggle('hidden', !st.retroarchOk);
   const btn = $('#btn-install');
   if (!installing) {
-    const allOk = st.retroarchOk && st.gb && st.gba && st.nds;
+    const allOk = st.retroarchOk && st.gb && st.gba && st.nds && st.gc && st.ps1 && st.ps2;
     btn.disabled = allOk;
     btn.textContent = allOk ? 'Tout est installé ✔' : st.retroarchOk ? 'Installer les moteurs manquants' : 'Tout installer automatiquement';
   }
@@ -367,6 +372,13 @@ window.api.onSetupProgress(({ label, frac }) => {
   bar.classList.toggle('indeterminate', frac == null);
   if (frac != null) $('#install-bar').style.width = Math.round(frac * 100) + '%';
 });
+$('#btn-bios').onclick = async () => {
+  const r = await window.api.importBios();
+  if (r.ok) toast(`BIOS importés : ${r.ps1} PS1, ${r.ps2} PS2${r.ignored ? ` (${r.ignored} fichier(s) ignoré(s) : taille inattendue)` : ''}.`, 6000);
+  else if (r.error) toast(r.error);
+  renderSettings();
+};
+$('#btn-dolphin').onclick = () => window.api.openDolphin();
 $('#btn-add-dir').onclick = async () => {
   const d = await window.api.pickGamesDir();
   if (d && !config.gamesDirs.includes(d)) { await window.api.setConfig({ gamesDirs: [...config.gamesDirs, d] }); renderSettings(); }

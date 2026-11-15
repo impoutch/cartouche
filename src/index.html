@@ -19,6 +19,9 @@
       <button data-filter="gbc"><i class="dot gbc"></i>Game Boy Color <span class="count" id="c-gbc"></span></button>
       <button data-filter="gba"><i class="dot gba"></i>Game Boy Advance <span class="count" id="c-gba"></span></button>
       <button data-filter="nds"><i class="dot nds"></i>Nintendo DS <span class="count" id="c-nds"></span></button>
+      <button data-filter="gc"><i class="dot gc"></i>GameCube <span class="count" id="c-gc"></span></button>
+      <button data-filter="ps1"><i class="dot ps1"></i>PlayStation <span class="count" id="c-ps1"></span></button>
+      <button data-filter="ps2"><i class="dot ps2"></i>PlayStation 2 <span class="count" id="c-ps2"></span></button>
     </nav>
     <button id="btn-settings" class="settings-btn">⚙ Réglages</button>
   </aside>
@@ -54,7 +57,7 @@
 
       <div class="step">
         <h3><span class="num">1</span> Les moteurs de jeu</h3>
-        <p class="muted">Cartouche utilise RetroArch avec les moteurs SameBoy (Game Boy), mGBA (Game Boy Advance) et melonDS DS (DS). Un clic suffit pour tout installer (environ 250 Mo).</p>
+        <p class="muted">Cartouche utilise RetroArch (Game Boy, GBA, DS, PlayStation 1 et 2) et Dolphin (GameCube). Un clic suffit pour tout installer (environ 350 Mo).</p>
         <ul id="cores" class="cores"></ul>
         <div id="install-box" class="install-box hidden">
           <div id="install-label" class="small"></div>
@@ -64,6 +67,11 @@
           <button id="btn-install" class="primary">Tout installer automatiquement</button>
           <button id="btn-open-ra" class="ghost">Ouvrir RetroArch</button>
         </div>
+        <div class="row bios-row">
+          <button id="btn-bios" class="ghost">Importer des fichiers BIOS (PS1 / PS2)…</button>
+          <button id="btn-dolphin" class="ghost hidden">Réglages de Dolphin (manettes GameCube)</button>
+        </div>
+        <p class="muted small">Le BIOS PS2 est obligatoire et doit venir de ta propre console (outil « BIOS Dumper » de PCSX2). Le BIOS PS1 est facultatif mais améliore la compatibilité (ex. <code>scph5501.bin</code>). Cartouche range chaque fichier au bon endroit.</p>
         <details class="advanced">
           <summary>J’ai déjà RetroArch sur mon PC</summary>
           <div class="row">
@@ -75,7 +83,7 @@
 
       <div class="step">
         <h3><span class="num">2</span> Tes dossiers de jeux</h3>
-        <p class="muted">Fichiers reconnus : .gb, .gbc, .gba, .nds, et ces jeux dans des archives .zip ou .7z (les sous-dossiers sont inclus).</p>
+        <p class="muted">Fichiers reconnus : .gb, .gbc, .gba, .nds (aussi dans des .zip / .7z), et pour les disques : .cue, .chd, .iso, .m3u, .pbp (PS1/PS2), .iso, .rvz, .gcz, .ciso (GameCube) (les sous-dossiers sont inclus).</p>
         <ul id="dirs" class="dirs"></ul>
         <button id="btn-add-dir">+ Ajouter un dossier</button>
       </div>

@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('api', {
   installAll: () => ipcRenderer.invoke('setup:install'),
   onSetupProgress: (cb) => ipcRenderer.on('setup:progress', (_e, p) => cb(p)),
   version: () => ipcRenderer.invoke('app:version'),
+  importBios: () => ipcRenderer.invoke('bios:import'),
+  openDolphin: () => ipcRenderer.invoke('dolphin:open'),
   restoreGame: () => ipcRenderer.invoke('game:restore'),
   closeGame: () => ipcRenderer.invoke('game:close'),
   currentGame: () => ipcRenderer.invoke('game:current'),
